@@ -1462,6 +1462,7 @@ class EventsController extends AppController {
 	}
 
 	public function xml($key, $eventid=null, $withAttachment = false, $tags = '') {
+		if ($tags != '') $tags = str_replace(';', ':', $tags);
 		if ($eventid === 'null' || $eventid ==='false') $eventid=null;
 		if ($withAttachment === 'null' || $withAttachment ==='false') $withAttachment = false;
 		if ($key != 'download') {
@@ -1624,6 +1625,7 @@ class EventsController extends AppController {
 	}
 
 	public function nids($format = 'suricata', $key = '', $id = null, $continue = false, $tags = '') {
+		if ($tags != '') $tags = str_replace(';', ':', $tags);
 		if ($id === 'null') $id = null;
 		if ($continue === 'false') $continue = false;
 		if ($continue === 'true') $continue = true;
@@ -1656,6 +1658,7 @@ class EventsController extends AppController {
 	}
 
 	public function hids($type, $key, $tags = '') {
+		if ($tags != '') $tags = str_replace(';', ':', $tags);
 		$this->response->type('txt');	// set the content type
 		$this->header('Content-Disposition: download; filename="misp.' . $type . '.rules"');
 		$this->layout = 'text/default';
@@ -1682,6 +1685,7 @@ class EventsController extends AppController {
 	// Usage: csv($key, $eventid)   - key can be a valid auth key or the string 'download'. Download requires the user to be logged in interactively and will generate a .csv file
 	// $eventid can be one of 3 options: left empty it will get all the visible to_ids attributes,
 	public function csv($key, $eventid=0, $ignore=0, $tags = '') {
+		if ($tags != '') $tags = str_replace(';', ':', $tags);
 		$list = array();
 
 		if ($key != 'download') {
@@ -2133,6 +2137,7 @@ class EventsController extends AppController {
 	// && - you can use && between two search values to put a logical OR between them. for value, 1.1.1.1&&2.2.2.2 would find attributes with the value being either of the two.
 	// ! - you can negate a search term. For example: google.com&&!mail would search for all attributes with value google.com but not ones that include mail. www.google.com would get returned, mail.google.com wouldn't.
 	public function restSearch($key=null, $value=null, $type=null, $category=null, $org=null, $tags = '') {
+		if ($tags != '') $tags = str_replace(';', ':', $tags);
 		if ($value === 'null') $value = null;
 		if ($type === 'null') $type = null;
 		if ($category === 'null') $category = null;
@@ -2219,7 +2224,6 @@ class EventsController extends AppController {
 			}
 			$conditions['AND'][] = $temp;
 		}
-
 		$params = array(
 			'conditions' => $conditions,
 			'fields' => array('Attribute.event_id'),
@@ -2423,9 +2427,9 @@ class EventsController extends AppController {
 		$tag_id = $this->request->data['Event']['tag'];
 		$id = $this->request->data['Event']['id'];
 		$this->Event->recurisve = -1;
-		$event = $this->Event->read(array('id', 'org', 'orgc'), $id);
+		$event = $this->Event->read(array('id', 'org', 'orgc', 'distribution'), $id);
 		// org should allow to tag too, so that an event that gets pushed can be tagged locally by the owning org
-		if ($this->Auth->user('org') !== $event['Event']['org'] && $this->Auth->user('org') !== $event['Event']['orgc'] && !$this->_isSiteAdmin()) {
+		if (($this->Auth->user('org') !== $event['Event']['org'] && $this->Auth->user('org') !== $event['Event']['orgc'] && $event['Event']['distribution'] == 0) || (!$this->userRole['perm_tagger']) && !$this->_isSiteAdmin()) {
 			throw new MethodNotAllowedException('You don\'t have permission to do that.');
 		}
 		$this->Event->EventTag->Tag->id = $tag_id;
@@ -2454,9 +2458,9 @@ class EventsController extends AppController {
 			throw new MethodNotAllowedException('You don\'t have permission to do that.');
 		}
 		$this->Event->recurisve = -1;
-		$event = $this->Event->read(array('id', 'org', 'orgc'), $id);
+		$event = $this->Event->read(array('id', 'org', 'orgc', 'distribution'), $id);
 		// org should allow to tag too, so that an event that gets pushed can be tagged locally by the owning org
-		if ($this->Auth->user('org') !== $event['Event']['org'] && $this->Auth->user('org') !== $event['Event']['orgc'] && !$this->_isSiteAdmin()) {
+		if (($this->Auth->user('org') !== $event['Event']['org'] && $this->Auth->user('org') !== $event['Event']['orgc'] && $event['Event']['distribution'] == 0) || (!$this->userRole['perm_tagger']) && !$this->_isSiteAdmin()) {
 			throw new MethodNotAllowedException('You don\'t have permission to do that.');
 		}
 		$eventTag = $this->Event->EventTag->find('first', array(
