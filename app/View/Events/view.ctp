@@ -1,14 +1,10 @@
 <?php
 $mayModify = (($isAclModify && $event['Event']['user_id'] == $me['id'] && $event['Event']['orgc'] == $me['org']) || ($isAclModifyOrg && $event['Event']['orgc'] == $me['org']));
 $mayPublish = ($isAclPublish && $event['Event']['orgc'] == $me['org']);
-<<<<<<< HEAD
 
-echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'viewEvent'));
-=======
 ?>
 <?php
 	echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'viewEvent', 'mayModify' => $mayModify, 'mayPublish' => $mayPublish));
->>>>>>> develop
 ?>
 
 <div class="events view">
@@ -50,18 +46,18 @@ echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'vie
 				<?php endif; ?>
 				<dt>Contributors</dt>
 				<dd>
-					<?php 
+					<?php
 						foreach($logEntries as $k => $entry) {
 							if ('true' == Configure::read('MISP.showorg') || $isAdmin) {
 								?>
 									<a href="/logs/event_index/<?php echo $event['Event']['id'] . '/' . h($entry['Log']['org']);?>" style="margin-right:2px;text-decoration: none;">
-								<?php 
+								<?php
 									echo $this->element('img', array('id' => $entry['Log']['org'], 'imgSize' => 24, 'imgStyle' => true));
 								?>
 									</a>
-								<?php 
+								<?php
 							}
-						}		
+						}
 					?>
 					&nbsp;
 				</dd>
@@ -72,13 +68,13 @@ echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'vie
 					&nbsp;
 				</dd>
 				<?php endif; ?>
-				<?php 
+				<?php
 					if (Configure::read('MISP.tagging')): ?>
 						<dt>Tags</dt>
 						<dd>
 						<table>
 							<tr>
-						<?php 
+						<?php
 							foreach ($tags as $tag): ?>
 							<td style="padding-right:0px;">
 								<?php if ($isAclTagger): ?>
@@ -89,12 +85,12 @@ echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'vie
 							</td>
 							<?php if ($isAclTagger): ?>
 							<td style="padding-left:0px;padding-right:5px;">
-							<?php 
+							<?php
 							echo $this->Form->postLink('x', array('action' => 'removeTag', $event['Event']['id'], $tag['Tag']['id']), array('class' => 'tagSecondHalf', 'title' => 'Delete'), ('Are you sure you want to delete this tag?'));
 							?>
 							</td>
 							<?php endif; ?>
-							<?php 
+							<?php
 							endforeach;
 							if ($isAclTagger) : ?>
 							<td id ="addTagTD" style="display:none;">
@@ -113,10 +109,10 @@ echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'vie
 							</td>
 							<td>
 							<button id="addTagButton" class="btn btn-inverse" style="line-height:10px; padding: 4px 4px;">+</button>
-					
+
 							</td>
 							<?php else:
-									if (empty($tags)) echo '&nbsp;'; 
+									if (empty($tags)) echo '&nbsp;';
 								endif; ?>
 						</tr>
 						</table>
@@ -129,7 +125,7 @@ echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'vie
 				</dd>
 				<dt title="<?php echo $eventDescriptions['threat_level_id']['desc'];?>">Threat Level</dt>
 				<dd>
-					<?php 
+					<?php
 						if ($event['ThreatLevel']['name']) echo h($event['ThreatLevel']['name']);
 						else echo h($event['Event']['threat_level_id']);
 					?>
@@ -142,8 +138,8 @@ echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'vie
 				</dd>
 				<dt>Distribution</dt>
 				<dd <?php if($event['Event']['distribution'] == 0) echo 'class = "privateRedText"';?> title = "<?php echo h($distributionDescriptions[$event['Event']['distribution']]['formdesc'])?>">
-					<?php 
-						echo h($distributionLevels[$event['Event']['distribution']]); 
+					<?php
+						echo h($distributionLevels[$event['Event']['distribution']]);
 					?>
 				</dd>
 				<dt>Description</dt>
@@ -239,9 +235,9 @@ if (!empty($event['Attribute']) || !empty($remaining)):?>
 		?>
 		<tr>
 			<td class= "short <?php echo $extra; ?>">
-			<?php 
+			<?php
 				if (isset($attribute['timestamp'])) echo date('Y-m-d', $attribute['timestamp']);
-				else echo '&nbsp';				
+				else echo '&nbsp';
 			?>
 			</td>
 			<?php if($first): ?>
@@ -387,7 +383,7 @@ if (!empty($event['Attribute']) || !empty($remaining)):?>
 							}
 						?></td>
 					<td class="short highlight2">
-					<?php 
+					<?php
 						echo h($shadowAttribute['comment']);
 					?>
 					</td>
@@ -428,8 +424,8 @@ if (!empty($event['Attribute']) || !empty($remaining)):?>
 								?>
 							<tr class="highlight2">
 								<td class= "short <?php echo $extra; ?>">
-									<?php 
-										echo '&nbsp';				
+									<?php
+										echo '&nbsp';
 									?>
 								</td>
 								<td class="highlight2" title="<?php if('' != $remain['category']) echo $categoryDefinitions[$remain['category']]['desc'];?>">
@@ -472,7 +468,7 @@ if (!empty($event['Attribute']) || !empty($remaining)):?>
 										}
 									?></td>
 								<td class="short highlight2">
-								<?php 
+								<?php
 									echo h($remain['comment']);
 								?>
 								</td>
