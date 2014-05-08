@@ -27,7 +27,7 @@ class ServersController extends AppController {
 		parent::beforeFilter();
 
 		// Disable this feature if the sync configuration option is not active
-		if ('true' != Configure::read('CyDefSIG.sync'))
+		if ('true' != Configure::read('MISP.sync'))
 			throw new ConfigureException("The sync feature is not active in the configuration.");
 
 		// permit reuse of CSRF tokens on some pages.
@@ -65,13 +65,14 @@ class ServersController extends AppController {
  * @return void
  */
 	public function add() {
-		if ((!$this->_IsSiteAdmin()) && !($this->Server->organization == $this->Auth->user('org') && $this->userRole['perm_sync'])) $this->redirect(array('controller' => 'servers', 'action' => 'index'));
+		if (!$this->_isAdmin()) $this->redirect(array('controller' => 'servers', 'action' => 'index'));
 		if ($this->request->is('post')) {
 			// force check userid and orgname to be from yourself
 			$this->request->data['Server']['org'] = $this->Auth->user('org');
-
-			$this->Server->create();
 			if ($this->Server->save($this->request->data)) {
+				if (isset($this->request->data['Server']['submitted_cert'])) {
+					$this->__saveCert($this->request->data, $this->Server->id);
+				}
 				$this->Session->setFlash(__('The server has been saved'));
 				$this->redirect(array('action' => 'index'));
 			} else {
@@ -88,18 +89,23 @@ class ServersController extends AppController {
  * @throws NotFoundException
  */
 	public function edit($id = null) {
-		if (!$this->_IsSiteAdmin() && !($this->Server->organization == $this->Auth->user('org') && $this->userRole['perm_sync'])) $this->redirect(array('controller' => 'servers', 'action' => 'index'));
 		$this->Server->id = $id;
 		if (!$this->Server->exists()) {
 			throw new NotFoundException(__('Invalid server'));
 		}
+		$s = $this->Server->read(null, $id);
+		if (!$this->_isSiteAdmin() && !($s['Server']['org'] == $this->Auth->user('org') && $this->_isAdmin())) $this->redirect(array('controller' => 'servers', 'action' => 'index'));
 		if ($this->request->is('post') || $this->request->is('put')) {
 			// say what fields are to be updated
-			$fieldList = array('url', 'push', 'pull', 'organization');
+			$fieldList = array('id', 'url', 'push', 'pull', 'organization', 'self_signed', 'cert_file');
+			$this->request->data['Server']['id'] = $id;
 			if ("" != $this->request->data['Server']['authkey'])
 				$fieldList[] = 'authkey';
 			// Save the data
 			if ($this->Server->save($this->request->data, true, $fieldList)) {
+				if (isset($this->request->data['Server']['submitted_cert']) && $this->request->data['Server']['submitted_cert']['size'] != 0) {
+					$this->__saveCert($this->request->data, $this->Server->id);
+				}
 				$this->Session->setFlash(__('The server has been saved'));
 				$this->redirect(array('action' => 'index'));
 			} else {
@@ -121,7 +127,6 @@ class ServersController extends AppController {
  * @throws NotFoundException
  */
 	public function delete($id = null) {
-		if(!$this->_IsSiteAdmin() && !($this->Server->id == $this->Auth->user('org') && $this->userRole['perm_sync'])) $this->redirect(array('controller' => 'servers', 'action' => 'index'));
 		if (!$this->request->is('post')) {
 			throw new MethodNotAllowedException();
 		}
@@ -129,6 +134,8 @@ class ServersController extends AppController {
 		if (!$this->Server->exists()) {
 			throw new NotFoundException(__('Invalid server'));
 		}
+		$s = $this->Server->read(null, $id);
+		if (!$this->_isSiteAdmin() && !($s['Server']['org'] == $this->Auth->user('org') && $this->_isAdmin())) $this->redirect(array('controller' => 'servers', 'action' => 'index'));
 		if ($this->Server->delete()) {
 			$this->Session->setFlash(__('Server deleted'));
 			$this->redirect(array('action' => 'index'));
@@ -150,238 +157,133 @@ class ServersController extends AppController {
 	 * @throws NotFoundException
 	 */
 	public function pull($id = null, $technique=false) {
-		if (!$this->_isSiteAdmin() && !($this->Server->organization == $this->Auth->user('org') && $this->userRole['perm_sync'])) $this->redirect(array('controller' => 'servers', 'action' => 'index'));
+		$this->Server->id = $id;
+		if (!$this->Server->exists()) {
+			throw new NotFoundException(__('Invalid server'));
+		}
+		$s = $this->Server->read(null, $id);
+		if (!$this->_isSiteAdmin() && !($s['Server']['org'] == $this->Auth->user('org') && $this->_isAdmin())) $this->redirect(array('controller' => 'servers', 'action' => 'index'));
 		$this->Server->id = $id;
 		if (!$this->Server->exists()) {
 			throw new NotFoundException(__('Invalid server'));
 		}
 
-		App::uses('HttpSocket', 'Network/Http');
-		$this->Server->read(null, $id);
 		if (false == $this->Server->data['Server']['pull']) {
 			$this->Session->setFlash(__('Pull setting not enabled for this server.'));
 			$this->redirect(array('action' => 'index'));
 		}
-
-		$eventIds = array();
-		if ("full" == $technique) {
-			// get a list of the event_ids on the server
-			$eventIds = $this->Event->getEventIdsFromServer($this->Server->data);
-			// FIXME this is not clean at all ! needs to be refactored with try catch error handling/communication
-			if ($eventIds === 403) {
-				$this->Session->setFlash(__('Not authorised. This is either due to an invalid auth key, or due to the sync user not having authentication permissions enabled on the remote server.'));
-				$this->redirect(array('action' => 'index'));
-			} else if (is_string($eventIds)) {
-				$this->Session->setFlash($eventIds);
-				$this->redirect(array('action' => 'index'));
+		if (!Configure::read('MISP.background_jobs')) {
+			$result = $this->Server->pull($this->Auth->user(), $id, $technique, $s);
+			
+			// error codes
+			if (is_numeric($result)) {
+				switch ($result) {
+					case '1' :
+						$this->Session->setFlash(__('Not authorised. This is either due to an invalid auth key, or due to the sync user not having authentication permissions enabled on the remote server.'));
+						$this->redirect(array('action' => 'index'));
+						break;
+					case '2' :
+						$this->Session->setFlash($eventIds);
+						$this->redirect(array('action' => 'index'));
+						break;
+					case '3' :
+						throw new NotFoundException('Sorry, this is not yet implemented');
+						break;
+					case '4' :
+						$this->redirect(array('action' => 'index'));
+						break;
+						
+				}
+			} else {
+				$this->set('successes', $result[0]);
+				$this->set('fails', $result[1]);
+				$this->set('pulledProposals', $result[2]);
+				$this->set('lastpulledid', $result[3]);
 			}
-
-			// reverse array of events, to first get the old ones, and then the new ones
-			$eventIds = array_reverse($eventIds);
-		} elseif ("incremental" == $technique) {
-		    // TODO incremental pull
-		    throw new NotFoundException('Sorry, this is not yet implemented');
-
-		} elseif (true == $technique) {
-			$eventIds[] = intval($technique);
 		} else {
+			$this->loadModel('Job');
+			$this->Job->create();
+			$data = array(
+					'worker' => 'default',
+					'job_type' => 'pull',
+					'job_input' => 'Server: ' . $id,
+					'status' => 0,
+					'retries' => 0,
+					'org' => $this->Auth->user('org'),
+					'message' => 'Pulling.',
+			);
+			$this->Job->save($data);
+			$jobId = $this->Job->id;
+			$process_id = CakeResque::enqueue(
+					'default',
+					'ServerShell',
+					array('pull', $this->Auth->user('id'), $id, $technique, $jobId)
+			);
+			$this->Job->saveField('process_id', $process_id);
+			$this->Session->setFlash('Pull queued for background execution.');
 			$this->redirect(array('action' => 'index'));
 		}
-
-		// now process the $eventIds to pull each of the events sequentially
-		if (!empty($eventIds)) {
-			$successes = array();
-			$fails = array();
-			// download each event
-			if (null != $eventIds) {
-				App::import('Controller', 'Events');
-				$HttpSocket = new HttpSocket();
-				foreach ($eventIds as &$eventId) {
-					$event = $this->Event->downloadEventFromServer(
-							$eventId,
-							$this->Server->data);
-					if (null != $event) {
-						// we have an Event array
-						// The event came from a pull, so it should be locked.
-						$event['Event']['locked'] = true;
-						if (!isset($event['Event']['distribution'])) { // version 1
-							$event['Event']['distribution'] = '1';
-						}
-						// Distribution
-						switch($event['Event']['distribution']) {
-							case 1:
-							case 'This community only': // backwards compatibility
-								// if community only, downgrade to org only after pull
-								$event['Event']['distribution'] = '0';
-								break;
-							case 2:
-							case 'Connected communities': // backwards compatibility
-								// if connected communities downgrade to community only
-								$event['Event']['distribution'] = '1';
-								break;
-							case 'All communities': // backwards compatibility
-								$event['Event']['distribution'] = '3';
-								break;
-							case 'Your organisation only': // backwards compatibility
-								$event['Event']['distribution'] = '0';
-								break;
-						}
-
-						// correct $event if just one Attribute
-						if (is_array($event['Event']['Attribute']) && isset($event['Event']['Attribute']['id'])) {
-							$tmp = $event['Event']['Attribute'];
-							unset($event['Event']['Attribute']);
-							$event['Event']['Attribute'][0] = $tmp;
-						}
-
-						if (is_array($event['Event']['Attribute'])) {
-							$size = is_array($event['Event']['Attribute']) ? count($event['Event']['Attribute']) : 0;
-							for ($i = 0; $i < $size; $i++) {
-								if (!isset($event['Event']['Attribute'][$i]['distribution'])) { // version 1
-									$event['Event']['Attribute'][$i]['distribution'] = 1;
-								}
-								switch($event['Event']['Attribute'][$i]['distribution']) {
-									case 1:
-									case 'This community only': // backwards compatibility
-										// if community only, downgrade to org only after pull
-										$event['Event']['Attribute'][$i]['distribution'] = '0';
-										break;
-									case 2:
-									case 'Connected communities': // backwards compatibility
-										// if connected communities downgrade to community only
-										$event['Event']['Attribute'][$i]['distribution'] = '1';
-										break;
-									case 'All communities': // backwards compatibility
-									    $event['Event']['Attribute'][$i]['distribution'] = '3';
-									    break;
-									case 'Your organisation only': // backwards compatibility
-									    $event['Event']['Attribute'][$i]['distribution'] = '0';
-									    break;
-								}
-							}
-							$event['Event']['Attribute'] = array_values($event['Event']['Attribute']);
-						} else {
-							unset($event['Event']['Attribute']);
-						}
-						// Distribution, set reporter of the event, being the admin that initiated the pull
-						$event['Event']['user_id'] = $this->Auth->user('id');
-						// check if the event already exist (using the uuid)
-						$existingEvent = null;
-						$existingEvent = $this->Event->find('first', array('conditions' => array('Event.uuid' => $event['Event']['uuid'])));
-						$eventsController = new EventsController();
-						$eventsController->constructClasses();
-						if (!$existingEvent) {
-							// add data for newly imported events
-							$passAlong = $this->Server->data['Server']['url'];
-							$result = $eventsController->_add($event, $fromXml = true, $this->Server->data['Server']['organization'], $passAlong, true);
-							if ($result) $successes[] = $eventId;
-							else {
-								$fails[$eventId] = 'Failed (partially?) because of validation errors: '. print_r($eventsController->Event->validationErrors, true);
-							}
-						} else {
-							$result = $eventsController->_edit($event, $existingEvent['Event']['id']);
-							if ($result === 'success') $successes[] = $eventId;
-							else $fails[$eventId] = $result;
-						}
-					} else {
-						// error
-						$fails[$eventId] = 'failed downloading the event';
-					}
-				}
-				if (count($fails) > 0) {
-					// there are fails, take the lowest fail
-					$lastpulledid = min(array_keys($fails));
-				} else {
-					// no fails, take the highest success
-					$lastpulledid = count($successes) > 0 ? max($successes) : 0;
-				}
-				// increment lastid based on the highest ID seen
-				$this->Server->set('lastpulledid', $lastpulledid);
-				$this->Server->save($event, array('fieldList' => array('lastpulledid', 'url')));
-
-			}
-		}
-
-		$this->set('successes', $successes);
-		$this->set('fails', $fails);
 	}
 
 	public function push($id = null, $technique=false) {
-		if (!$this->_isSiteAdmin() && !($this->Server->organization == $this->Auth->user('org') && $this->userRole['perm_sync'])) $this->redirect(array('controller' => 'servers', 'action' => 'index'));
 		$this->Server->id = $id;
 		if (!$this->Server->exists()) {
 			throw new NotFoundException(__('Invalid server'));
 		}
-
-		App::uses('HttpSocket', 'Network/Http');
-		$this->Server->read(null, $id);
-
-		if (false == $this->Server->data['Server']['push']) {
-			$this->Session->setFlash(__('Push setting not enabled for this server.'));
-			$this->redirect(array('action' => 'index'));
-		}
-
-		if ("full" == $technique) {
-			$eventid_conditions_key = 'Event.id >';
-			$eventid_conditions_value = 0;
-		} elseif ("incremental" == $technique) {
-			$eventid_conditions_key = 'Event.id >';
-			$eventid_conditions_value = $this->Server->data['Server']['lastpushedid'];
-		} elseif (true == $technique) {
-			$eventIds[] = array('Event' => array ('id' => intval($technique)));
+		$s = $this->Server->read(null, $id);
+		if (!$this->_isSiteAdmin() && !($s['Server']['org'] == $this->Auth->user('org') && $this->_isAdmin())) $this->redirect(array('controller' => 'servers', 'action' => 'index'));
+		if (!Configure::read('MISP.background_jobs')) {
+			$server = $this->Server->read(null, $id);
+			App::uses('SyncTool', 'Tools');
+			$syncTool = new SyncTool();
+			$HttpSocket = $syncTool->setupHttpSocket($server);
+			$result = $this->Server->push($id, $technique, false, $HttpSocket);
+			$this->set('successes', $result[0]);
+			$this->set('fails', $result[1]);
 		} else {
+			$this->loadModel('Job');
+			$this->Job->create();
+			$data = array(
+					'worker' => 'default',
+					'job_type' => 'push',
+					'job_input' => 'Server: ' . $id,
+					'status' => 0,
+					'retries' => 0,
+					'org' => $this->Auth->user('org'),
+					'message' => 'Pushing.',
+			);
+			$this->Job->save($data);
+			$jobId = $this->Job->id;
+			$process_id = CakeResque::enqueue(
+					'default',
+					'ServerShell',
+					array('push', $id, $technique, $jobId)
+			);
+			$this->Job->saveField('process_id', $process_id);
+			$this->Session->setFlash('Push queued for background execution.');
 			$this->redirect(array('action' => 'index'));
 		}
-		if (!isset($eventIds)) {
-			$findParams = array(
-			        'conditions' => array(
-			                $eventid_conditions_key => $eventid_conditions_value,
-			                'Event.distribution >' => 0,
-			                'Event.published' => 1,
-			        		'Event.attribute_count >' => 0
-			        ), //array of conditions
-			        'recursive' => -1, //int
-			        'fields' => array('Event.id'), //array of field names
-			);
-			$eventIds = $this->Event->find('all', $findParams);
+	}
+	
+	public function __saveCert($server, $id) {
+		$ext = '';
+		App::uses('File', 'Utility');
+		App::uses('Folder', 'Utility');
+		$file = new File($server['Server']['submitted_cert']['name']);
+		$ext = $file->ext();
+		if (($ext != 'pem') || !$server['Server']['submitted_cert']['size'] > 0) {
+			$this->Session->setFlash('Incorrect extension of empty file.');
+			$this->redirect(array('action' => 'index'));
 		}
-		//debug($eventIds);
-		// now process the $eventIds to pull each of the events sequentially
-		if (!empty($eventIds)) {
-			$successes = array();
-			$fails = array();
-			$lowestfailedid = null;
-			$HttpSocket = new HttpSocket();
-			foreach ($eventIds as $eventId) {
-				$this->Event->recursive=1;
-				$event = $this->Event->findById($eventId['Event']['id']);
-				$event['Event']['locked'] = true;
-				unset($event['User']);
-				$result = $this->Event->uploadEventToServer(
-				        $event,
-				        $this->Server->data,
-				        $HttpSocket);
-				if ('Success' === $result) {
-				    $successes[] = $event['Event']['id'];
-				} else {
-				    $fails[$event['Event']['id']] = $result;
-				}
-			}
-			if (count($fails) > 0) {
-			    // there are fails, take the lowest fail
-			    $lastpushedid = min(array_keys($fails));
-			} else {
-			    // no fails, take the highest success
-			    $lastpushedid = max($successes);
-			}
-			// increment lastid based on the highest ID seen
-			// Save the entire Server data instead of just a single field, so that the logger can be fed with the extra fields.
-			$this->Server->data['Server']['lastpushedid'] = $lastpushedid;
-			$this->Server->save($this->Server->data);
-		}
-		if (!isset($successes)) $successes = null;
-		if (!isset($fails)) $fails = null;
-		$this->set('successes', $successes);
-		$this->set('fails', $fails);
+		$pemData = fread(fopen($server['Server']['submitted_cert']['tmp_name'], "r"),
+				$server['Server']['submitted_cert']['size']);
+		$destpath = APP . "files" . DS . "certs" . DS;
+		$dir = new Folder(APP . "files" . DS . "certs", true);
+		if (!preg_match('@^[\w-,\s,\.]+\.[A-Za-z0-9_]{2,4}$@', $server['Server']['submitted_cert']['name'])) throw new Exception ('Filename not allowed');
+		$pemfile = new File ($destpath . $id . '.' . $ext);
+		$result = $pemfile->write($pemData); 
+		$s = $this->Server->read(null, $id);
+		$s['Server']['cert_file'] = $s['Server']['id'] . '.' . $ext;
+		if ($result) $this->Server->save($s);
 	}
 }

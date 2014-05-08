@@ -1,3 +1,7 @@
+<?php
+$mayModify = (($isAclModify && $event['Event']['user_id'] == $me['id'] && $event['Event']['orgc'] == $me['org']) || ($isAclModifyOrg && $event['Event']['orgc'] == $me['org']));
+$mayPublish = ($isAclPublish && $event['Event']['orgc'] == $me['org']);
+?>
 <div class="events form">
 <?php echo $this->Form->create('Event');?>
 	<fieldset>
@@ -8,7 +12,7 @@
 			'type' => 'text',
 			'class' => 'datepicker'
 	));
-if ('true' == Configure::read('CyDefSIG.sync')) {
+if ('true' == Configure::read('MISP.sync')) {
 	echo $this->Form->input('distribution', array(
 		'options' => array($distributionLevels),
 		'label' => 'Distribution',
@@ -24,7 +28,11 @@ if ('true' == Configure::read('CyDefSIG.sync')) {
     echo $this->Form->input('Server', array('multiple' => 'checkbox', 'div' => 'input clear'));
 	echo $this->Form->input('info', array(
 			'div' => 'clear',
-			'class' => 'input-xxlarge'
+			'label' => 'Event Description',
+			'div' => 'clear',
+			'type' => 'text',
+			'class' => 'form-control span6',
+			'placeholder' => 'Quick Event Description or Tracking Info'
 			));
 
 ?>
@@ -35,7 +43,7 @@ echo $this->Form->end();
 ?>
 </div>
 <?php
-	echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'editEvent'));
+	echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'editEvent', 'mayModify' => $mayModify, 'mayPublish' => $mayPublish));
 ?>
 
 <script type="text/javascript">
@@ -63,10 +71,6 @@ foreach ($analysisDescriptions as $type => $def) {
 ?>
 
 $(document).ready(function() {
-
-	$("#EventAnalysis, #EventThreatLevelId, #EventDistribution").on('mouseleave', function(e) {
-	    $('#'+e.currentTarget.id).popover('destroy');
-	});
 
 	$("#EventAnalysis, #EventThreatLevelId, #EventDistribution").on('mouseover', function(e) {
 	    var $e = $(e.target);

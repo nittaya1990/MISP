@@ -3,6 +3,7 @@
 <?php if(empty($this->passedArgs['searchDatefrom'])) $this->passedArgs['searchDatefrom'] = '';?>
 <?php if(empty($this->passedArgs['searchDateuntil'])) $this->passedArgs['searchDateuntil'] = '';?>
 <?php if(empty($this->passedArgs['searchpublished'])) $this->passedArgs['searchpublished'] = '2';?>
+<?php if(empty($this->passedArgs['searchtag'])) $this->passedArgs['searchtag'] = '';?>
 <div class="events index">
 	<h2>Events</h2>
 	<div class="pagination">
@@ -69,7 +70,7 @@
 	<table class="table table-striped table-hover table-condensed">
 		<tr>
 			<th class="filter">
-				<?php echo $this->Paginator->sort('published', 'Valid.');?>
+				<?php echo $this->Paginator->sort('published');?>
 				<a onclick="$('#searchpublished').toggle();" class="icon-search"></a>
 				<span id="searchpublished"><br/>
 					<?php
@@ -79,6 +80,7 @@
 					echo $this->Form->input('searchinfo', array('value' => $this->passedArgs['searchinfo'], 'type' => 'hidden'));
 					echo $this->Form->input('searchDatefrom', array('value' => $this->passedArgs['searchDatefrom'], 'type' => 'hidden'));
 					echo $this->Form->input('searchDateuntil', array('value' => $this->passedArgs['searchDateuntil'], 'type' => 'hidden'));
+					echo $this->Form->input('searchtag', array('value' => $this->passedArgs['searchtag'], 'type' => 'hidden'));
 					echo $this->Form->input('searchpublished', array(
 							'options' => array('0' => 'No', '1' => 'Yes', '2' => 'Any'),
 							'default' => 2,
@@ -94,7 +96,7 @@
 				</span>
 			</th>
 			<?php
-			if ('true' == Configure::read('CyDefSIG.showorg') || $isAdmin) { ?>
+			if ('true' == Configure::read('MISP.showorg') || $isAdmin) { ?>
 			<th class="filter"><?php echo $this->Paginator->sort('org'); ?>
 				<a onclick="toggleField('#searchorg')" class="icon-search"></a>
 				<span id="searchorg"><br/>
@@ -104,6 +106,7 @@
 				echo $this->Form->input('searchinfo', array('value' => $this->passedArgs['searchinfo'], 'type' => 'hidden'));
 				echo $this->Form->input('searchDatefrom', array('value' => $this->passedArgs['searchDatefrom'], 'type' => 'hidden'));
 				echo $this->Form->input('searchDateuntil', array('value' => $this->passedArgs['searchDateuntil'], 'type' => 'hidden'));
+				echo $this->Form->input('searchtag', array('value' => $this->passedArgs['searchtag'], 'type' => 'hidden'));
 				echo $this->Form->input('searchorg', array(
 					'value' => $this->passedArgs['searchorg'],
 					'label' => '',
@@ -124,6 +127,31 @@
 			</th>
 			<?php endif; ?>
 			<th><?php echo $this->Paginator->sort('id');?></th>
+			<?php if (Configure::read('MISP.tagging')): ?>
+			<th class="filter">Tags
+				<a onclick="toggleField('#searchtag')" class="icon-search"></a>
+				<span id="searchtag"><br/>
+				<?php
+					echo $this->Form->create('', array('action' => 'index', 'style' => 'margin-bottom:0px'));
+					echo $this->Form->input('searchorg', array('value' => $this->passedArgs['searchorg'], 'type' => 'hidden'));
+					echo $this->Form->input('searchpublished', array('value' => $this->passedArgs['searchpublished'], 'type' => 'hidden'));
+					echo $this->Form->input('searchDatefrom', array('value' => $this->passedArgs['searchDatefrom'], 'type' => 'hidden'));
+					echo $this->Form->input('searchDateuntil', array('value' => $this->passedArgs['searchDateuntil'], 'type' => 'hidden'));
+					echo $this->Form->input('searchinfo', array('value' => $this->passedArgs['searchinfo'], 'type' => 'hidden'));
+					echo $this->Form->input('searchtag', array(
+							'options' => array($tags),
+							'value' => $this->passedArgs['searchtag'],
+							'label' => '',
+							'onChange' => 'this.form.submit()',
+							'class' => 'input-large'));
+				?>
+					<input type="submit" style="visibility:collapse;" />
+				<?php
+					echo $this->Form->end();
+				?>
+				</span>
+			</th>
+			<?php endif; ?>
 			<th><?php echo $this->Paginator->sort('attribute_count', '#Attr.');?></th>
 			<?php if ($isSiteAdmin): ?>
 			<th><?php echo $this->Paginator->sort('user_id', 'Email');?></th>
@@ -138,6 +166,7 @@
 							echo $this->Form->input('searchorg', array('value' => $this->passedArgs['searchorg'], 'type' => 'hidden'));
 							echo $this->Form->input('searchinfo', array('value' => $this->passedArgs['searchinfo'], 'type' => 'hidden'));
 							echo $this->Form->input('searchpublished', array('value' => $this->passedArgs['searchpublished'], 'type' => 'hidden'));
+							echo $this->Form->input('searchtag', array('value' => $this->passedArgs['searchtag'], 'type' => 'hidden'));
 							echo $this->Form->input('searchDatefrom', array(
 									'value' => $this->passedArgs['searchDatefrom'],
 									'label' => false,
@@ -176,6 +205,7 @@
 					echo $this->Form->input('searchpublished', array('value' => $this->passedArgs['searchpublished'], 'type' => 'hidden'));
 					echo $this->Form->input('searchDatefrom', array('value' => $this->passedArgs['searchDatefrom'], 'type' => 'hidden'));
 					echo $this->Form->input('searchDateuntil', array('value' => $this->passedArgs['searchDateuntil'], 'type' => 'hidden'));
+					echo $this->Form->input('searchtag', array('value' => $this->passedArgs['searchtag'], 'type' => 'hidden'));
 					echo $this->Form->input('searchinfo', array(
 							'value' => $this->passedArgs['searchinfo'],
 							'label' => '',
@@ -187,7 +217,7 @@
 				?>
 				</span>
 			</th>
-			<?php if ('true' == Configure::read('CyDefSIG.sync')): ?>
+			<?php if ('true' == Configure::read('MISP.sync')): ?>
 			<th title="<?php echo $eventDescriptions['distribution']['desc'];?>">
 				<?php echo $this->Paginator->sort('distribution');?>
 			</th>
@@ -195,7 +225,7 @@
 			<th class="actions">Actions</th>
 
 		</tr>
-		<?php foreach ($events as $event):?>
+		<?php foreach ($events as $event): ?>
 		<tr <?php if($event['Event']['distribution'] == 0) echo 'class = "privateRed"'?>>
 			<td class="short" onclick="document.location.href ='/events/view/<?php echo $event['Event']['id'];?>'">
 				<?php
@@ -209,7 +239,7 @@
 				<?php
 				}?>&nbsp;
 			</td>
-			<?php if ('true' == Configure::read('CyDefSIG.showorg') || $isAdmin): ?>
+			<?php if ('true' == Configure::read('MISP.showorg') || $isAdmin): ?>
 			<td class="short" onclick="document.location.href ='/events/view/<?php echo $event['Event']['id'];?>'">
 				<?php
 					$imgRelativePath = 'orgs' . DS . h($event['Event']['orgc']) . '.png';
@@ -234,6 +264,13 @@
 			<td class="short">
 				<a href="/events/view/<?php echo $event['Event']['id'] ?>"><?php echo $event['Event']['id'];?></a>
 			</td>
+			<?php if (Configure::read('MISP.tagging')): ?>
+			<td class="short">
+				<?php foreach ($event['EventTag'] as $tag):?>
+					<span class=tag style="background-color:<?php echo $tag['Tag']['colour']?>" title="<?php echo $tag['Tag']['name']; ?>">&nbsp</span>
+				<?php endforeach; ?>
+			</td>
+			<?php endif; ?>
 			<td class="short" onclick="location.href ='/events/view/<?php echo $event['Event']['id'];?>'">
 				<?php echo $event['Event']['attribute_count']; ?>&nbsp;
 			</td>
@@ -246,7 +283,10 @@
 				<?php echo $event['Event']['date']; ?>&nbsp;
 			</td>
 			<td class="short" onclick="location.href ='/events/view/<?php echo $event['Event']['id'];?>'">
-				<?php echo $event['ThreatLevel']['name']; ?>&nbsp;
+				<?php 
+				if ($event['ThreatLevel']['name']) echo h($event['ThreatLevel']['name']);
+				else echo h($event['Event']['threat_level_id']);
+				?>&nbsp;
 			</td>
 			<td class="short" onclick="location.href ='/events/view/<?php echo $event['Event']['id'];?>'">
 				<?php echo $analysisLevels[$event['Event']['analysis']]; ?>&nbsp;
@@ -254,7 +294,7 @@
 			<td onclick="location.href ='/events/view/<?php echo $event['Event']['id'];?>'">
 				<?php echo nl2br(h($event['Event']['info'])); ?>&nbsp;
 			</td>
-			<?php if ('true' == Configure::read('CyDefSIG.sync')): ?>
+			<?php if ('true' == Configure::read('MISP.sync')): ?>
 			<td class="short <?php if ($event['Event']['distribution'] == 0) echo 'privateRedText';?>" onclick="location.href ='/events/view/<?php echo $event['Event']['id'];?>'">
 				<?php echo $event['Event']['distribution'] != 3 ? $distributionLevels[$event['Event']['distribution']] : 'All';?>
 			</td>
@@ -305,6 +345,7 @@ $(document).ready( function () {
 	$('#searchorg').hide();
 	$('#searchdate').hide();
 	$('#searchpublished').hide();
+	$('#searchtag').hide();
 
 });
 

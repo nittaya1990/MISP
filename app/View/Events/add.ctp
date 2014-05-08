@@ -11,7 +11,7 @@
 		if (Configure::read('MISP.default_event_distribution') != null) {
 			$initialDistribution = Configure::read('MISP.default_event_distribution');
 		}
-		if ('true' == Configure::read('CyDefSIG.sync')) {
+		if ('true' == Configure::read('MISP.sync')) {
 			echo $this->Form->input('distribution', array(
 					'options' => array($distributionLevels),
 					'label' => 'Distribution',
@@ -30,8 +30,11 @@
             'selected' => $selectedSharingGroups));
         echo $this->Form->input('Server', array('multiple' => 'checkbox', 'div' => 'input clear'));
 		echo $this->Form->input('info', array(
-				'div' => 'clear',
-				'class' => 'input-xxlarge'
+					'label' => 'Event Description',
+					'div' => 'clear',
+					'type' => 'text',
+					'class' => 'form-control span6',
+					'placeholder' => 'Quick Event Description or Tracking Info'
 				));
 		echo $this->Form->input('Event.submittedgfi', array(
 				'label' => '<b>GFI sandbox</b>',
@@ -75,10 +78,6 @@ foreach ($analysisDescriptions as $type => $def) {
 ?>
 
 $(document).ready(function() {
-
-	$("#EventAnalysis, #EventThreatLevelId, #EventDistribution").on('mouseleave', function(e) {
-	    $('#'+e.currentTarget.id).popover('destroy');
-	});
 
 	$("#EventAnalysis, #EventThreatLevelId, #EventDistribution").on('mouseover', function(e) {
 	    var $e = $(e.target);

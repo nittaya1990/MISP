@@ -25,6 +25,7 @@ class AttributesController extends AppController {
 		$this->Auth->allow('restSearch');
 		$this->Auth->allow('returnAttributes');
 		$this->Auth->allow('downloadAttachment');
+		$this->Auth->allow('text');
 
 		// permit reuse of CSRF tokens on the search page.
 		if ('search' == $this->request->params['action']) {
@@ -106,6 +107,7 @@ class AttributesController extends AppController {
  */
 	public function index() {
 		$this->Attribute->recursive = 0;
+		$this->Attribute->contain = array('Event.id', 'Event.orgc', 'Event.org');
 		$this->set('isSearch', 0);
 		$this->set('attributes', $this->paginate());
 		$this->set('attrDescriptions', $this->Attribute->fieldDescriptions);
@@ -121,6 +123,9 @@ class AttributesController extends AppController {
  * @throws NotFoundException // TODO Exception
  */
 	public function add($eventId = null) {
+		if (!$this->userRole['perm_add']) {
+			throw new MethodNotAllowedException('You don\'t have permissions to create attributes');
+		}
 		if ($this->request->is('post')) {
 			$this->loadModel('Event');
 			$date = new DateTime();
@@ -196,7 +201,7 @@ class AttributesController extends AppController {
 					//$existingAttributeCount = $this->Attribute->find('count', array('conditions' => array('Attribute.uuid' => $this->request->data['Attribute']['uuid'])));
 					if ($existingAttribute) {
 						// TODO RESTfull, set responce location header..so client can find right URL to edit
-						$this->response->header('Location', Configure::read('CyDefSIG.baseurl') . '/attributes/' . $existingAttribute['Attribute']['id']);
+						$this->response->header('Location', Configure::read('MISP.baseurl') . '/attributes/' . $existingAttribute['Attribute']['id']);
 						$this->response->send();
 						$this->view($this->Attribute->getId());
 						$this->render('view');
@@ -535,13 +540,11 @@ class AttributesController extends AppController {
 				}
 				fclose($handle);
 			}
-
 			// verify header of the file (first row)
-			$expected_header = array(
-					'Type', 'Value', 'Rating', 'Confidence', 'DateAdded',
-					'Description', 'Source', 'DNS', 'Whois');
-			if ($header != $expected_header) {
-				$this->Session->setFlash('Incorrect ThreatConnect headers. Expecting: '.implode(',', $expected_header), 'default', array(), 'error');
+			$required_headers = array('Type', 'Value', 'Confidence', 'Description', 'Source');
+			
+			if (count(array_intersect($header, $required_headers)) != count($required_headers)) {
+				$this->Session->setFlash('Incorrect ThreatConnect headers. The minimum required headers are: '.implode(',', $required_headers), 'default', array(), 'error');
 				$this->redirect(array('controller' => 'attributes', 'action' => 'add_threatconnect', $this->request->data['Attribute']['event_id']));
 			}
 
@@ -798,7 +801,7 @@ class AttributesController extends AppController {
 			throw new NotFoundException(__('Invalid attribute'));
 		}
 
-		if ('true' == Configure::read('CyDefSIG.sync')) {
+		if ('true' == Configure::read('MISP.sync')) {
 			// find the uuid
 			$result = $this->Attribute->findById($id);
 			$uuid = $result['Attribute']['uuid'];
@@ -821,7 +824,7 @@ class AttributesController extends AppController {
 		// attachment will be deleted with the beforeDelete() function in the Model
 		if ($this->Attribute->delete()) {
 			// delete the attribute from remote servers
-			if ('true' == Configure::read('CyDefSIG.sync')) {
+			if ('true' == Configure::read('MISP.sync')) {
 				// find the uuid
 				$this->__deleteAttributeFromServers($uuid);
 			}
@@ -851,10 +854,10 @@ class AttributesController extends AppController {
 		// iterate over the servers and upload the attribute
 		if (empty($servers))
 			return;
-
-		App::uses('HttpSocket', 'Network/Http');
-		$HttpSocket = new HttpSocket();
+		App::uses('SyncTool', 'Tools');
 		foreach ($servers as &$server) {
+			$syncTool = new SyncTool();
+			$HttpSocket = $syncTool->setupHttpSocket($server);
 			$this->Attribute->deleteAttributeFromServer($uuid, $server, $HttpSocket);
 		}
 	}
@@ -992,7 +995,8 @@ class AttributesController extends AppController {
 				$this->paginate = array(
 					'limit' => 60,
 					'maxLimit' => 9999, // LATER we will bump here on a problem once we have more than 9999 attributes?
-					'conditions' => $conditions
+					'conditions' => $conditions,
+					'contain' => array('Event.orgc', 'Event.id', 'Event.org', 'Event.user_id')
 				);
 				if (!$this->_isSiteAdmin()) {
 					// merge in private conditions
@@ -1029,6 +1033,7 @@ class AttributesController extends AppController {
 				$this->Session->write('paginate_conditions_keyword2', $keyword2);
 				$this->Session->write('paginate_conditions_org', $org);
 				$this->Session->write('paginate_conditions_type', $type);
+				$this->Session->write('paginate_conditions_ioc', $ioc);
 				$this->Session->write('paginate_conditions_category', $category);
 				$this->Session->write('search_find_idlist', $idList);
 				$this->Session->write('search_find_attributeidlist', $attributeIdList);
@@ -1124,15 +1129,32 @@ class AttributesController extends AppController {
 	// the last 4 fields accept the following operators:
 	// && - you can use && between two search values to put a logical OR between them. for value, 1.1.1.1&&2.2.2.2 would find attributes with the value being either of the two.
 	// ! - you can negate a search term. For example: google.com&&!mail would search for all attributes with value google.com but not ones that include mail. www.google.com would get returned, mail.google.com wouldn't.
-	public function restSearch($key, $value=null, $type=null, $category=null, $org=null) {
-		$user = $this->checkAuthUser($key);
+	public function restSearch($key='download', $value=null, $type=null, $category=null, $org=null, $tags=null) {
+		if ($tags) $tags = str_replace(';', ':', $tags);
+		if ($tags === 'null') $tags = null;
+		if ($value === 'null') $value = null;
+		if ($type === 'null') $type = null;
+		if ($category === 'null') $category = null;
+		if ($org === 'null') $org = null;
+		if ($key!=null && $key!='download') {
+			$user = $this->checkAuthUser($key);
+		} else {
+			if (!$this->Auth->user()) throw new UnauthorizedException('You are not authorized. Please send the Authorization header with your auth key along with an Accept header for application/xml.');
+			$user = $this->checkAuthUser($this->Auth->user('authkey'));
+		}
 		if (!$user) {
 			throw new UnauthorizedException('This authentication key is not authorized to be used for exports. Contact your administrator.');
 		}
 		$value = str_replace('|', '/', $value);
-		$this->response->type('xml');	// set the content type
-		$this->layout = 'xml/default';
-		$this->header('Content-Disposition: download; filename="misp.search.attribute.results.xml"');
+		if (!isset($this->request->params['ext']) || $this->request->params['ext'] !== 'json') {
+			$this->response->type('xml');	// set the content type
+			$this->layout = 'xml/default';
+			$this->header('Content-Disposition: download; filename="misp.search.attribute.results.xml"');
+		} else {
+			$this->response->type('json');	// set the content type
+			$this->layout = 'json/default';
+			$this->header('Content-Disposition: download; filename="misp.search.attribute.results.json"');
+		}
 		$conditions['AND'] = array();
 		$subcondition = array();
 		$this->loadModel('Attribute');
@@ -1141,7 +1163,7 @@ class AttributesController extends AppController {
 		$parameters = array('value', 'type', 'category', 'org');
 
 		foreach ($parameters as $k => $param) {
-			if (isset(${$parameters[$k]})) {
+			if (isset(${$parameters[$k]}) && ${$parameters[$k]}!=='null') {
 				$elements = explode('&&', ${$parameters[$k]});
 				foreach($elements as $v) {
 					if (substr($v, 0, 1) == '!') {
@@ -1186,18 +1208,33 @@ class AttributesController extends AppController {
 			$subcondition['OR'][] = array('Event.org' => $user['User']['org']);
 			array_push($conditions['AND'], $subcondition);
 		}
+		// If we sent any tags along, load the associated tag names for each attribute
+		if ($tags) {
+			$args = $this->Attribute->dissectArgs($tags);
+			$this->loadModel('Tag');
+			$tagArray = $this->Tag->fetchEventTagIds($args[0], $args[1]);
+			$temp = array();
+			foreach ($tagArray[0] as $accepted) {
+				$temp['OR'][] = array('Event.id' => $accepted);
+			}
+			$conditions['AND'][] = $temp;
+			$temp = array();
+			foreach ($tagArray[1] as $rejected) {
+				$temp['AND'][] = array('Event.id !=' => $rejected);
+			}
+			$conditions['AND'][] = $temp;
+		}
 
 		// change the fields here for the attribute export!!!! Don't forget to check for the permissions, since you are not going through fetchevent. Maybe create fetchattribute?
-
+		
 		$params = array(
 				'conditions' => $conditions,
 				'fields' => array('Attribute.*', 'Event.org', 'Event.distribution'),
-				'contain' => 'Event'
+				'contain' => array('Event' => array())
 		);
-
 		$results = $this->Attribute->find('all', $params);
 		$this->loadModel('Whitelist');
-		$results = $this->Whitelist->removeWhitelistedFromArray($results, false);
+		$results = $this->Whitelist->removeWhitelistedFromArray($results, true);
 		if (empty($results)) throw new NotFoundException('No matches.');
 		$this->set('results', $results);
 	}
@@ -1287,8 +1324,13 @@ class AttributesController extends AppController {
 		$this->set('results', $attributes);
 	}
 
-	public function downloadAttachment($key, $id) {
-		$user = $this->checkAuthUser($key);
+	public function downloadAttachment($key='download', $id) {
+		if ($key!=null && $key!='download') {
+			$user = $this->checkAuthUser($key);
+		} else {
+			if (!$this->Auth->user()) throw new UnauthorizedException('You are not authorized. Please send the Authorization header with your auth key along with an Accept header for application/xml.');
+			$user = $this->checkAuthUser($this->Auth->user('authkey'));
+		}
 		// if the user is authorised to use the api key then user will be populated with the user's account
 		// in addition we also set a flag indicating whether the user is a site admin or not.
 		if (!$user) {
@@ -1307,5 +1349,41 @@ class AttributesController extends AppController {
 			throw new NotFoundException('Invalid attribute or no authorisation to view it.');
 		}
 		$this->__downloadAttachment($this->Attribute->data['Attribute']);
+	}
+
+	public function text($key='download', $type="", $tags='') {
+		if ($key != 'download') {
+			// check if the key is valid -> search for users based on key
+			$user = $this->checkAuthUser($key);
+			if (!$user) {
+				throw new UnauthorizedException('This authentication key is not authorized to be used for exports. Contact your administrator.');
+			}
+		} else {
+			if (!$this->Auth->user('id')) {
+				throw new UnauthorizedException('You have to be logged in to do that.');
+			}
+		}
+		$this->response->type('txt');	// set the content type
+		$this->header('Content-Disposition: download; filename="misp.' . $type . '.txt"');
+		$this->layout = 'text/default';
+		$attributes = $this->Attribute->text($this->_checkOrg(), $this->_isSiteAdmin(), $type, $tags);
+		$this->loadModel('Whitelist');
+		$attributes = $this->Whitelist->removeWhitelistedFromArray($attributes, true);
+		$this->set('attributes', $attributes);
+	}
+	
+
+	public function reportValidationIssuesAttributes() {
+		// TODO improve performance of this function by eliminating the additional SQL query per attribute
+		// search for validation problems in the attributes
+		if (!self::_isSiteAdmin()) throw new NotFoundException();
+		$this->set('result', $this->Attribute->reportValidationIssuesAttributes());
+	}
+	
+	public function generateCorrelation() {
+		if (!self::_isSiteAdmin()) throw new NotFoundException();
+		$k = $this->Attribute->generateCorrelation();
+		$this->Session->setFlash(__('All done. ' . $k . ' attributes processed.'));
+		$this->redirect(array('controller' => 'pages', 'action' => 'display', 'administration'));
 	}
 }

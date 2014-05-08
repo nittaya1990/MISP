@@ -1,24 +1,31 @@
 
-Upgrade procedure from v1 to v2
+Upgrade procedure from v2.1 to v2.2
 
-- git pull the latest version of MISP from https://github.com/BeDefCERT/MISP.git
+- git pull the latest version of MISP from https://github.com/MISP/MISP.git
 
-- execute the .sql file called "MYSQL.migrate.sql" found in the www/MISP/INSTALL folder. You can do this by 
-	using the command "mysql -u [username] -p[password] [MISP's database] < MYSQL.migrate.sql
-
-- excecute the following two commands from your www/MISP/app folder:
-	./Console/cake acl create aco root controllers
-	./Console/cake AclExtras.AclExtras aco_sync
+- execute UPGRADE.SH in the MISP/INSTALL folder (this also includes the installation of Redis for CakeResque)   
+	- cd /var/www/MISP/INSTALL
+	- ./UPGRADE.SH
+	
+- Replace your current bootstrap.php file found in /MISP/app/Config/ with bootstrap.default.php and change set your instance up to your liking
 
 - Log in with the site admin credentials and execute the following commands by changing the url 
 (where <MISP> is the address of your instance):
-	- https://<MISP>/events/generateCorrelation
-	- https://<MISP>/events/generateCount
-	- https://<MISP>/events/generateArosAcos
+	- https://<MISP>/events/generateThreatLevelFromRisk
 
-If all went right, then your MISP instance should now be at version 2. 
+================================================================================================================================================
 
-Check the following:
-	- That your organisation in the bootstrap.php file found in www/MISP/app/Config/ is the correct
-	Organisation identifier used by the users of your organisation and by the sync users of 
-	other hosting organisations that synchronise with your instance. 
+Enabling background jobs via CakeResque 
+(assuming /var/www/MISP as your installation directory)
+
+- Enable CakeResque in MISP
+	- vim /var/www/MISP/app/Config/bootstrap.php
+	- set Configure::write('MISP.background_jobs', false); to Configure::write('MISP.background_jobs', true); 
+	- uncomment CakePlugin::load('CakeResque', array('bootstrap' => true));
+
+- start the background workers
+	- cd /var/www/MISP/app/Console/worker/
+	- ./start.sh
+	Make sure you configure your OS to start this script as boot time !
+	
+================================================================================================================================================

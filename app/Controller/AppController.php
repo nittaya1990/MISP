@@ -41,6 +41,13 @@ class AppController extends Controller {
 	public $defaultModel = '';
 
 	public $debugMode = false;
+	
+	// Used for _isAutomation(), a check that returns true if the controller & action combo matches an action that is a non-xml and non-json automation method
+	// This is used to allow authentication via headers for methods not covered by _isRest() - as that only checks for JSON and XML formats 
+	public $automationArray = array(
+		'events' => array('csv', 'nids', 'hids'),
+		'attributes' => array('text', 'downloadAttachment'),
+	);
 
 	public function __construct($id = false, $table = null, $ds = null) {
 		parent::__construct($id, $table, $ds);
@@ -65,12 +72,18 @@ class AppController extends Controller {
 				'logoutRedirect' => array('controller' => 'users', 'action' => 'login'),
 				//'authorize' => array('Controller', // Added this line
 				//'Actions' => array('actionPath' => 'controllers')) // TODO ACL, 4: tell actionPath
-				)
+				),
 	);
-
+	
+	public $mispVersion = '2.2.0';
+	
 	public function beforeFilter() {
+		// send users away that are using ancient versions of IE
+		// Make sure to update this if IE 20 comes out :)
+		if(preg_match('/(?i)msie [2-8]/',$_SERVER['HTTP_USER_AGENT']) && !strpos($_SERVER['HTTP_USER_AGENT'], 'Opera')) throw new MethodNotAllowedException('You are using an unsecure and outdated version of IE, please download Google Chrome, Mozilla Firefox or update to a newer version of IE. If you are running IE9 or newer and still receive this error message, please make sure that you are not running your browser in compatibility mode. If you still have issues accessing the site, get in touch with your administration team at ' . Configure::read('MISP.contact'));
+		
 		// REST authentication
-		if ($this->_isRest() || $this->isJson()) {
+		if ($this->_isRest() || $this->_isAutomation()) {
 			// disable CSRF for REST access
 			if (array_key_exists('Security', $this->components))
 				$this->Security->csrfCheck = false;
@@ -82,8 +95,7 @@ class AppController extends Controller {
 				    // User found in the db, add the user info to the session
 				    $this->Session->renew();
 				    $this->Session->write(AuthComponent::$sessionKey, $user['User']);
-				}
-				else {
+				} else {
 					// User not authenticated correctly
 					// reset the session information
 					$this->Session->destroy();
@@ -117,6 +129,7 @@ class AppController extends Controller {
 			$this->set('isAclAudit', $role['perm_audit']);
 			$this->set('isAclAuth', $role['perm_auth']);
 			$this->set('isAclRegexp', $role['perm_regexp_access']);
+			$this->set('isAclTagger', $role['perm_tagger']);
 			$this->userRole = $role;
 		} else {
 			$this->set('me', false);
@@ -131,6 +144,7 @@ class AppController extends Controller {
 			$this->set('isAclAudit', false);
 			$this->set('isAclAuth', false);
 			$this->set('isAclRegexp', false);
+			$this->set('isAclTagger', false);
 		}
 		if (Configure::read('debug') > 0) {
 			$this->debugMode = 'debugOn';
@@ -138,11 +152,15 @@ class AppController extends Controller {
 			$this->debugMode = 'debugOff';
 		}
 		$this->set('debugMode', $this->debugMode);
+		$proposalCount = $this->_getProposalCount();
+		$this->set('proposalCount', $proposalCount[0]);
+		$this->set('proposalEventCount', $proposalCount[1]);
+		$this->set('mispVersion', $this->mispVersion);
 	}
 
 	public $userRole = null;
 
-	public function isJson(){
+	protected function _isJson(){
 		return $this->request->header('Accept') === 'application/json';
 	}
 
@@ -153,9 +171,35 @@ class AppController extends Controller {
 	//}
 
 	protected function _isRest() {
-		return (isset($this->RequestHandler) && ($this->RequestHandler->isXml() || $this->isJson()));
+		return (isset($this->RequestHandler) && ($this->RequestHandler->isXml() || $this->_isJson()));
+	}
+	
+	protected function _isAutomation() {
+		foreach ($this->automationArray as $controllerName => $controllerActions) {
+			if ($this->params['controller'] == $controllerName && in_array($this->params['action'], $controllerActions)) return true;
+		}
+		return false;
 	}
 
+	private function _getProposalCount() {
+		$this->loadModel('ShadowAttribute');
+		$this->ShadowAttribute->recursive = -1;
+		$shadowAttributes = $this->ShadowAttribute->find('all', array(
+				'recursive' => -1,
+				'fields' => array('event_id', 'event_org'),
+				'conditions' => array( 
+					'ShadowAttribute.event_org' => $this->Auth->user('org')
+		)));
+		$results = array();
+		$eventIds = array();
+		$results[0] = count($shadowAttributes);
+		foreach ($shadowAttributes as $sa) {
+			if (!in_array($sa['ShadowAttribute']['event_id'], $eventIds)) $eventIds[] = $sa['ShadowAttribute']['event_id'];
+		}
+		$results[1] = count($eventIds);
+		return $results;
+	}
+	
 /**
  * Convert an array to the same array but with the values also as index instead of an interface_exists
  */
@@ -227,68 +271,6 @@ class AppController extends Controller {
 		$this->Auth->login($user['User']);
 	}
 
-	public function generateCorrelation() {
-		if (!self::_isSiteAdmin()) throw new NotFoundException();
-
-		$this->loadModel('Correlation');
-		$this->Correlation->deleteAll(array('id !=' => ''), false);
-		$this->loadModel('Attribute');
-		$fields = array('Attribute.id', 'Attribute.event_id', 'Attribute.distribution', 'Attribute.cluster', 'Event.date', 'Event.org');
-		// get all attributes..
-		$attributes = $this->Attribute->find('all', array('recursive' => -1));
-		// for all attributes..
-		foreach ($attributes as $attribute) {
-			$this->Attribute->__afterSaveCorrelation($attribute['Attribute']);
-		}
-		$this->Session->setFlash(__('All done.'));
-		$this->redirect(array('controller' => 'events', 'action' => 'index', 'admin' => false));
-	}
-
-	public function generateLocked() {
-		if (!self::_isSiteAdmin()) throw new NotFoundException();
-		$this->loadModel('User');
-		$this->User->recursive = -1;
-		$localOrgs = array();
-		$conditions = array();
-		$orgs = $this->User->find('all', array('fields' => array('DISTINCT org')));
-		foreach ($orgs as $k => $org) {
-			$orgs[$k]['User']['count'] = $this->User->find('count', array(
-							'conditions' => array(
-									'org =' => $orgs[$k]['User']['org'],
-			)));
-			if ($orgs[$k]['User']['count'] > 1) {
-				$localOrgs[] = $orgs[$k]['User']['org'];
-				$conditions['AND'][] = array('orgc !=' => $orgs[$k]['User']['org']);
-			} else if ($orgs[$k]['User']['count'] == 1) {
-				// If we only have a single user for an org, check if that user is a sync user. If not, then it is a valid local org and the events created by him/her should be unlocked.
-				$this->User->recursive = 1;
-				$user = ($this->User->find('first', array(
-						'fields' => array('id', 'role_id'),
-						'conditions' => array('org' => $org['User']['org']),
-						'contain' => array('Role' => array(
-								'fields' => array('id', 'perm_sync'),
-				))
-				)));
-				if (!$user['Role']['perm_sync']) {
-					$conditions['AND'][] = array('orgc !=' => $orgs[$k]['User']['org']);
-				}
-			}
-		}
-		// Don't lock stuff that's already locked
-		$conditions['AND'][] = array('locked !=' => true);
-		$this->loadModel('Event');
-		$this->Event->recursive = -1;
-		$toBeUpdated = $this->Event->find('count', array(
-				'conditions' => $conditions
-		));
-		$this->Event->updateAll(
-				array('Event.locked' => 1),
-				$conditions
-		);
-		$this->Session->setFlash('Events updated, '. $toBeUpdated . ' record(s) altered.');
-		$this->redirect(array('controller' => 'pages', 'action' => 'display', 'administration'));
-	}
-
 /**
  *
  * @param $action
@@ -334,178 +316,23 @@ class AppController extends Controller {
 		return false;
 	}
 
-	public function generatePrivate() {
-		$this->generatePrivateForAttributes();
-		$this->generatePrivateForEvents();
-	}
-
-	public function generatePrivateForAttributes() {
-		if (!self::_isSiteAdmin()) throw new NotFoundException();
-
-		$this->loadModel('Attribute');
-		$attributes = $this->Attribute->find('all', array('recursive' => 0));
-		foreach ($attributes as $attribute) {
-			if ($attribute['Attribute']['private']) {
-				$attribute['Attribute']['private'] = true;
-				$attribute['Attribute']['cluster'] = false;
-				$attribute['Attribute']['communitie'] = false;
-			} else {
-				$attribute['Attribute']['private'] = false;
-				$attribute['Attribute']['cluster'] = false;
-				$attribute['Attribute']['communitie'] = false;
-			}
-			$this->Attribute->save($attribute);
-		}
-	}
-
-	public function generatePrivateForEvents() {
-		if (!self::_isSiteAdmin()) throw new NotFoundException();
-
-		$this->loadModel('Event');
-		$events = $this->Event->find('all', array('recursive' => 0));
-		foreach ($events as $event) {
-			if ($event['Event']['private']) {
-				$event['Event']['private'] = true;
-				$event['Event']['cluster'] = false;
-				$event['Event']['communitie'] = false;
-			} else {
-				$event['Event']['private'] = false;
-				$event['Event']['cluster'] = false;
-				$event['Event']['communitie'] = false;
-			}
-			$event['Event']['orgc'] = $event['Event']['org'];
-			$event['Event']['dist_change'] = 0;
-			$event['Event']['analysis'] = 2;
-			$this->Event->save($event);
-		}
-	}
-
 	public function generateCount() {
 		if (!self::_isSiteAdmin()) throw new NotFoundException();
 		// do one SQL query with the counts
 		// loop over events, update in db
 		$this->loadModel('Attribute');
-		$events = $this->Attribute->query('SELECT event_id, count(event_id) as attribute_count FROM attributes GROUP BY event_id');
-		foreach ($events as $event) {
-			$this->Event->read(null, $event['attributes']['event_id']);
+		$events = $this->Attribute->find('all', array(
+			'recursive' => -1,
+			'fields' => array('event_id', 'count(event_id) as attribute_count'),
+			'group' => array('Attribute.event_id'),
+			'order' => array('Attribute.event_id ASC'),
+		));
+		foreach ($events as $k => $event) {
+			$this->Event->read(null, $event['Attribute']['event_id']);
 			$this->Event->set('attribute_count', $event[0]['attribute_count']);
 			$this->Event->save();
 		}
-		$this->Session->setFlash(__('All done. attribute_count generated from scratch.'));
+		$this->Session->setFlash(__('All done. attribute_count generated from scratch for ' . $k . ' events.'));
 		$this->redirect(array('controller' => 'pages', 'action' => 'display', 'administration'));
 	}
-
-/**
- * CakePHP returns false if filesize is 0 at lib/cake/Utility/File.php:384
- */
-	public function checkEmpty($fileP = '/var/www/cydefsig/app/files/test') {
-		// Check if there were problems with the file upload
-		// only keep the last part of the filename, this should prevent directory attacks
-		$filename = basename($fileP);
-		$tmpfile = new File($fileP);
-
-		debug($fileP);
-		debug($tmpfile);
-		debug($tmpfile->size());
-		debug($tmpfile->md5());
-		debug(md5_file($fileP));
-		$md5 = !$tmpfile->size() ? md5_file($fileP) : $tmpfile->md5();
-		debug($md5);
-	}
-
-/**
- * generateAllFor<FieldName>
- *
- * @throws NotFoundException // TODO Exception
- **/
-	public function generateAllFor($field) {
-		if (!self::_isSiteAdmin()) throw new NotFoundException();
-
-		// contain the newValue and oldValue
-		$methodArgs = $this->params['pass'];
-		// use call_user_func_array() to pass the newValue and oldValue
-		$success = call_user_func_array(array($this->{$this->defaultModel}, 'generateAllFor' . $field), $methodArgs);
-
-		// give feedback
-		$this->set('succes', $success);
-		$this->render('succes');
-	}
-
-	public function call($method, $dummySecond) {
-		$this->__call($method, $dummySecond);
-	}
-
-	public function __call($method, $dummySecond) {
-		$args = $this->params['pass']; // TODO this is naughty
-		if (strpos($method, 'generateAllFor') === 0) {
-			// massage the args
-			$methodArgs = $args;
-			$methodArgs[0] = str_replace('generateAllFor', '', $method); // TODO
-			//array_unshift($methodArgs, str_replace('generateAllFor', '', $method));
-			// do the actual call
-			return call_user_func_array(array($this, 'generateAllFor'), $methodArgs);
-		}
-
-		//if (strpos($method, 'findBy') === 0) {
-		//	//debug(true);debug(tru);
-		//}
-		return false;
-	}
-
-
-	public function reportValidationIssuesEvents() {
-		// search for validation problems in the events
-		if (!self::_isSiteAdmin()) throw new NotFoundException();
-		print ("<h2>Listing invalid event validations</h2>");
-		$this->loadModel('Event');
-		// first remove executing some Behaviors because of Noud's crappy code
-		$this->Event->Behaviors->detach('Regexp');
-		// get all events..
-		$events = $this->Event->find('all', array('recursive' => -1));
-		// for all events..
-		foreach ($events as $event) {
-		    $this->Event->set($event);
-		    if ($this->Event->validates()) {
-		        // validates
-		    } else {
-		        $errors = $this->Event->validationErrors;
-		        print ("<h3>Validation errors for event: " . $event['Event']['id'] . "</h3><pre>");
-		        print_r($errors);
-		        print ("</pre><p>Event details:</p><pre>");
-		        print_r($event);
-		        print ("</pre><br/>");
-		    }
-		}
-	}
-
-	public function reportValidationIssuesAttributes() {
-		// TODO improve performance of this function by eliminating the additional SQL query per attribute
-		// search for validation problems in the attributes
-		if (!self::_isSiteAdmin()) throw new NotFoundException();
-		print ("<h2>Listing invalid attribute validations</h2>");
-		$this->loadModel('Attribute');
-		// for efficiency reasons remove the unique requirement
-		$this->Attribute->validator()->remove('value', 'unique');
-
-		// get all attributes..
-		$attributes = $this->Attribute->find('all', array('recursive' => -1));
-		// for all attributes..
-		foreach ($attributes as $attribute) {
-		    $this->Attribute->set($attribute);
-		    if ($this->Attribute->validates()) {
-		        // validates
-		    } else {
-		        $errors = $this->Attribute->validationErrors;
-		        print ("<h3>Validation errors for attribute: " . $attribute['Attribute']['id'] . "</h3><pre>");
-		        print_r($errors['value'][0]);
-		        print ("</pre><p>Attribute details:</p><pre>");
-		        print($attribute['Attribute']['event_id']."\n");
-		        print($attribute['Attribute']['category']."\n");
-		        print($attribute['Attribute']['type']."\n");
-		        print($attribute['Attribute']['value']."\n");
-		        print ("</pre><br/>");
-		    }
-		}
-	}
-
 }

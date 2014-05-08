@@ -16,7 +16,7 @@
  * @license       MIT License (http://www.opensource.org/licenses/mit-license.php)
  */
 
-App::uses('Shell', 'Console');
+App::uses('AppModel', 'Model');
 
 /**
  * Application Shell
@@ -27,5 +27,8 @@ App::uses('Shell', 'Console');
  * @package       app.Console.Command
  */
 class AppShell extends Shell {
-
+	public function perform() {
+		$this->initialize();
+		$this->{array_shift($this->args)}();
+	}
 }

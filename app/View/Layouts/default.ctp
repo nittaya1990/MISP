@@ -4,16 +4,18 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 	<?php echo $this->Html->charset(); ?>
 	<title>
-		<?php echo $title_for_layout, ' - ', Configure::read('CyDefSIG.name')?>
+		<?php echo $title_for_layout, ' - ', Configure::read('MISP.name')?>
 	</title>
 	<?php
 		echo $this->Html->meta('icon');
-
 // 		echo $this->Html->css('cake.generic');
 		echo $this->Html->css('roboto');
 		echo $this->Html->css('bootstrap'); // see http://twitter.github.io/bootstrap/base-css.html
 		echo $this->Html->css('datepicker');
+		echo $this->Html->css('bootstrap-timepicker');
+		echo $this->Html->css('bootstrap-colorpicker.min');
 		echo $this->Html->css('main');
+		echo $this->Html->css('print', 'stylesheet', array('media' => 'print'));
 
 		// FIXME chri: re-add print stylesheet
 		//echo $this->Html->css(array('print'), 'stylesheet', array('media' => 'print'));
@@ -22,7 +24,7 @@
 		echo $this->fetch('css');
 		echo $this->fetch('script');
 
-		echo $this->Html->script('jquery-1.9.1.min'); // Include jQuery library
+		echo $this->Html->script('jquery-2.1.0.min'); // Include jQuery library
 	?>
 
 <!--?php echo $scripts_for_layout; ?-->
@@ -36,7 +38,7 @@
 				<?php
 			} else {
 				?>
-					<div class="container-fluid debugOn" style="width:98%;">
+					<div class="container-fluid debugOn" style="padding-top:10px;width:98%;">
 				<?php
 			}
 			echo $this->Session->flash('auth');
@@ -47,7 +49,7 @@
 		</div>
 		<div
 			<?php
-				if (Configure::read('debug') == 0) echo "style=\"padding-top:100px;\"";
+				if (Configure::read('debug') == 0) echo 'class="topGap"';
 			?>
 		>	
 			<?php echo $this->fetch('content'); ?>
@@ -57,7 +59,9 @@
 	echo $this->element('sql_dump');
 	echo $this->Html->script('bootstrap');
 	// echo $this->Html->script('bootstrap.min');
+	echo $this->Html->script('bootstrap-timepicker');
 	echo $this->Html->script('bootstrap-datepicker');
+	echo $this->Html->script('bootstrap-colorpicker.min');
 	echo $this->Html->script('main');
 	?>
 	</div>
@@ -65,10 +69,16 @@
 		<div class="spinner"></div>
 		<div class="loadingText">Loading</div>
 	</div>
+	<?php
+		if ($debugMode == 'debugOff'):
+	?>
 	<script type="text/javascript">
 		$(window).scroll(function(e) {
 			$('.actions').css('left',-$(window).scrollLeft());
 		});
 	</script>
+	<?php 
+		endif;
+	?>
 </body>
 </html>

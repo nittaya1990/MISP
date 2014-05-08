@@ -1,3 +1,7 @@
+<?php
+$mayModify = (($isAclModify && $event['Event']['user_id'] == $me['id'] && $event['Event']['orgc'] == $me['org']) || ($isAclModifyOrg && $event['Event']['orgc'] == $me['org']));
+$mayPublish = ($isAclPublish && $event['Event']['orgc'] == $me['org']);
+?>
 <div class="logs index">
 <h2>Logs</h2>
 	<div class="pagination">
@@ -18,17 +22,30 @@
 	</div>
 	<table class="table table-striped table-hover table-condensed">
 		<tr>
-			<th><?php echo $this->Paginator->sort('model');?></th>
+			<th><?php echo $this->Paginator->sort('org');?></th>
 			<th><?php echo $this->Paginator->sort('action');?></th>
-			<th><?php echo $this->Paginator->sort('created');?></th>
+			<th><?php echo $this->Paginator->sort('model');?></th>
 			<th><?php echo $this->Paginator->sort('title');?></th>
+			<th><?php echo $this->Paginator->sort('created');?></th>
 		</tr>
 		<?php foreach ($list as $item): ?>
 		<tr>
-			<td class="short"><?php echo (h($item['Log']['model']) . '(' . h($item['Log']['model_id']) . ')'); ?>&nbsp;</td>
+			<td class="short">
+			<?php
+				$imgRelativePath = 'orgs' . DS . h($item['Log']['org']) . '.png';
+				$imgAbsolutePath = APP . WEBROOT_DIR . DS . 'img' . DS . $imgRelativePath;
+				if (file_exists($imgAbsolutePath)) echo $this->Html->image('orgs/' . h($item['Log']['org']) . '.png', array('alt' => h($item['Log']['org']), 'title' => h($item['Log']['org']), 'style' => 'width:24px; height:24px'));
+				else echo $this->Html->tag('span', h($item['Log']['org']), array('class' => 'welcome', 'style' => 'float:left;'));
+			?>
+			&nbsp;
+			</td>
 			<td class="short"><?php echo h($item['Log']['action']); ?>&nbsp;</td>
-			<td class="short"><?php echo (h($item['Log']['created'])); ?>&nbsp;</td>
+			<td class="short"><?php 
+				if ($item['Log']['model'] !== 'ShadowAttribute') echo h($item['Log']['model']);
+				else echo 'Proposal'; 
+			?>&nbsp;</td>
 			<td><?php echo h($item['Log']['title']); ?>&nbsp;</td>
+			<td class="short"><?php echo (h($item['Log']['created'])); ?>&nbsp;</td>
 		</tr>
 		<?php endforeach; ?>
 	</table>
@@ -52,5 +69,5 @@
 <?php 
 	// We mimic the $event from some other views to pass the ID back to the sidemenu
 	$event['Event']['id'] = $eventId;
-	echo $this->element('side_menu', array('menuList' => 'event', 'event' => $event, 'menuItem' => 'eventLog'));
+	echo $this->element('side_menu', array('menuList' => 'event', 'event' => $event, 'menuItem' => 'eventLog', 'mayModify' => $mayModify, 'mayPublish' => $mayPublish));
 ?>

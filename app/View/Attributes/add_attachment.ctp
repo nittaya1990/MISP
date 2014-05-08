@@ -8,7 +8,7 @@
 		?>
 		<div class="input clear"></div>
 		<?php
-		if ('true' == Configure::read('CyDefSIG.sync')) {
+		if ('true' == Configure::read('MISP.sync')) {
 			$initialDistribution = 3;
 			if (Configure::read('MISP.default_attribute_distribution') != null) {
 				if (Configure::read('MISP.default_attribute_distribution') === 'event') {
@@ -108,10 +108,6 @@ foreach ($categoryDefinitions as $category => $def) {
 }
 ?>
 $(document).ready(function() {
-	
-	$("#AttributeCategory, #AttributeDistribution").on('mouseleave', function(e) {
-	    $('#'+e.currentTarget.id).popover('destroy');
-	});
 	
 	$("#AttributeCategory, #AttributeDistribution").on('mouseover', function(e) {
 	    var $e = $(e.target);

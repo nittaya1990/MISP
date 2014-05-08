@@ -392,6 +392,8 @@ class UsersController extends AppController {
 					'perm_auth' => 1,
 					'perm_site_admin' => 1,
 					'perm_regexp_access' => 1,
+					'perm_tagger' => 1,
+					'perm_site_admin' => 1
 				));
 				$this->Role->save($siteAdmin);
 			}
@@ -439,7 +441,7 @@ class UsersController extends AppController {
 		$this->Session->setFlash(__('Good-Bye'));
 		$this->redirect($this->Auth->logout());
 	}
-
+	
 	public function resetauthkey($id = null) {
 		if (!$id) {
 			$this->Session->setFlash(__('Invalid id for user', true), 'default', array(), 'error');
@@ -470,7 +472,7 @@ class UsersController extends AppController {
 		$params = array('recursive' => 0,
 							'fields' => $fields,
 							'group' => array('User.org'),
-							'order' => array('User.org'),
+							'order' => array('UPPER(User.org)'),
 		);
 		$orgs = $this->User->find('all', $params);
 		$this->set('orgs', $orgs);
@@ -582,26 +584,6 @@ class UsersController extends AppController {
 		return $result;
 	}
 
-	public function setRoleId($fk = '2') { // TODO generateAllFor<FieldName>
-		$params = array(
-				'conditions' => array('User.role_id' => ''),
-				'recursive' => 0,
-				'fields' => array('User.id'),
-		);
-		$users = $this->User->find('all', $params);
-		foreach ($users as $user) {
-			$this->User->id = $user['User']['id'];
-			$this->User->saveField('role_id', $fk);
-		}
-	}
-
-/**
- * generateAllFor<FieldName>
- **/
-	public function generateAllFor($field) {
-		parent::generateAllFor($field);
-	}
-
 /**
  * @throws NotFoundException
  **/
@@ -643,16 +625,16 @@ class UsersController extends AppController {
 					$message1 .= $this->request->data['User']['message'];
 				} else {
 					$message1 .= "Dear MISP user,\n\nA password reset has been triggered for your account. Use the below provided temporary password to log into MISP at ";
-					$message1 .= Configure::read('CyDefSIG.baseurl');
+					$message1 .= Configure::read('MISP.baseurl');
 					$message1 .= ", where you will be prompted to manually change your password to something of your own choice.";
 				}
 				//$message .= "\n\nYour temporary password: " . $password;
-				$subject = 'Password reset on ' . Configure::read('CyDefSIG.org') . ' MISP';
+				$subject = 'Password reset on ' . Configure::read('MISP.org') . ' MISP';
 			}
-			if (Configure::read('CyDefSIG.contact')) {
-				$message2 .= "\n\nIf you have any questions, contact us at: " . Configure::read('CyDefSIG.contact') . ".";
+			if (Configure::read('MISP.contact')) {
+				$message2 .= "\n\nIf you have any questions, contact us at: " . Configure::read('MISP.contact') . ".";
 			}
-			$message2 .= "\n\nBest Regards,\n" . Configure::read('CyDefSIG.org') . ' MISP support';
+			$message2 .= "\n\nBest Regards,\n" . Configure::read('MISP.org') . ' MISP support';
 
 			// Return an error message if the action is a password reset for a new user
 
@@ -720,7 +702,7 @@ class UsersController extends AppController {
 				}
 
 				// prepare the email
-				$this->Email->from = Configure::read('CyDefSIG.email');
+				$this->Email->from = Configure::read('MISP.email');
 				$this->Email->to = $recipients[$i];
 				$this->Email->subject = $subject;
 				//$this->Email->delivery = 'debug';   // do not really send out mails, only display it on the screen
@@ -750,4 +732,58 @@ class UsersController extends AppController {
 		// User didn't see the contact form yet. Present it to him.
 	}
 
+	// shows some statistics about the instance
+	public function statistics() {
+		
+		// set all of the data up for the heatmaps
+		$orgs = $this->User->find('all', array('fields' => array('DISTINCT (org) AS org'), 'recursive' => -1));
+		$this->loadModel('Log');
+		$year = date('Y');
+		$month = date('n');
+		$day = date('j');
+		$month = $month - 5;
+		if ($month < 1) {
+			$year--;
+			$month = 12 + $month;
+		}
+
+		// Some additional satistics
+		$this_month = strtotime('first day of this month');
+		$stats[0] = $this->User->Event->find('count', null);
+		$stats[1] = $this->User->Event->find('count', array('conditions' => array('Event.timestamp >' => $this_month)));
+
+		$stats[2] = $this->User->Event->Attribute->find('count', null);
+		$stats[3] = $this->User->Event->Attribute->find('count', array('conditions' => array('Attribute.timestamp >' => $this_month)));
+		
+		$this->loadModel('Correlation');
+		$this->Correlation->recursive = -1;
+		$stats[4] = $this->Correlation->find('count', null);
+		$stats[4] = $stats[4] / 2;
+		
+		$stats[5] = $this->User->Event->ShadowAttribute->find('count', null);
+		
+		$stats[6] = $this->User->find('count', null);
+		$stats[7] = count($orgs);
+		
+		$this->loadModel('Thread');
+		$stats[8] = $this->Thread->find('count', array('conditions' => array('Thread.post_count >' => 0)));
+		$stats[9] = $this->Thread->find('count', array('conditions' => array('Thread.date_created >' => date("Y-m-d H:i:s",$this_month), 'Thread.post_count >' => 0)));
+
+		$stats[10] = $this->Thread->Post->find('count', null);
+		$stats[11] = $this->Thread->Post->find('count', array('conditions' => array('Post.date_created >' => date("Y-m-d H:i:s",$this_month))));
+		
+		$this->set('stats', $stats);
+		$this->set('orgs', $orgs);
+		$this->set('start', strtotime(date('Y-m-d H:i:s') . ' -5 months'));
+		$this->set('end', strtotime(date('Y-m-d H:i:s')));
+		$this->set('startDateCal', $year . ', ' . $month . ', 01');
+		$range = '[5, 10, 50, 100]';
+		$this->set('range', $range);
+	}
+
+	public function verifyGPG() {
+		if (!self::_isSiteAdmin()) throw new NotFoundException();
+		$user_results = $this->User->verifyGPG();
+		$this->set('users', $user_results);
+	}
 }

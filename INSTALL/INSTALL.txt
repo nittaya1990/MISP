@@ -1,6 +1,9 @@
 INSTALLATION INSTRUCTIONS
 ------------------------- for ubuntu 12.04-server
 
+# steps 2 (besides acquiring git), 4, 5 can be skipped by running INSTALL.SH 
+# The correct order in this case is 1/, apt get git, 3/ and then executing INSTALL.SH in /var/www/MISP/INSTALL/INSTALL.SH
+
 1/ Minimal ubuntu install
 -------------------------
 Install a minimal ubuntu 12.04-server system with the software:
@@ -16,7 +19,7 @@ apt-get update
 apt-get upgrade
 
 
-2/ Dependencies
+2/ Dependencies *
 ----------------
 Once the system is installed you can perform the following steps as root:
 
@@ -24,22 +27,13 @@ Once the system is installed you can perform the following steps as root:
 apt-get install vim
 
 # Install the dependencies:
-apt-get install zip php-pear git
+apt-get install zip php-pear git redis-server make
 pear install Crypt_GPG    # we need version >1.3.0 
 pear install Net_GeoIP
 
+# (for Red Hat users, you will have to install Redis manually, http://redis.io/download)
 
-3/ CakePHP
------------
-# Download CakePHP from github
-cd /opt/
-git clone https://github.com/cakephp/cakephp.git
-
-# You should REALLY make sure that you install security updates of CakePHP when your system is in production !
-
-# If you plan to run multiple MISP instances on a single server, only one installation of CakePHP is needed !
-
-4/ MISP code
+3/ MISP code
 ------------
 # Download MISP using git in the /var/www/ directory. 
 cd /var/www/
@@ -49,6 +43,30 @@ git clone https://github.com/MISP/MISP.git
 cd /var/www/MISP
 git config core.filemode false
 
+4/ CakePHP (and CakeResque)
+-----------
+# CakePHP is now included as a submodule of MISP, execute the following commands to let git fetch it:
+
+git submodule init
+git submodule update
+
+# Once done, install the dependencies of CakeResque if you intend to use the built in background jobs:
+cd /var/www/MISP/app/Plugin/CakeResque
+curl -s https://getcomposer.org/installer | php
+php composer.phar install
+
+# CakeResque normally uses phpredis to connect to redis, but it has a (buggy) fallback connector through Redisent. It is highly advised to install phpredis
+pecl install redis
+# After installing it, enable it in your php.ini file
+vim /etc/php5/apache2/php.ini
+# add the following line:
+extension=redis.so 
+
+# To use the scheduler worker for scheduled tasks, do the following:
+cp -fa /var/www/MISP/INSTALL/setup/config.php /var/www/MISP/app/Plugin/CakeResque/Config/config.php
+
+5/ Set the permissions
+----------------------
 
 # Check if the permissions are set correctly using the following commands as root:
 chown -R www-data:www-data /var/www/MISP
@@ -56,16 +74,10 @@ chmod -R 750 /var/www/MISP
 cd /var/www/MISP/app/
 chmod -R g+ws tmp
 chmod -R g+ws files
-cd /var/www/MISP
 
-##
-## FIXME this is not really clean
-## 
-# Currently you will need to copy the plugins to the CakePHP directory.
-cp -r /var/www/MISP/plugins/* /opt/cakephp/plugins/
-chmod -R o+rx /opt/cakephp/plugins
+Red Hat users: Keep in mind that your apache user is called apache, not www-data
 
-5/ Create a database and user
+6/ Create a database and user
 -----------------------------
 # Enter the mysql shell
 mysql -u root -p
@@ -76,15 +88,20 @@ mysql> grant all privileges on misp.* to misp@localhost ;
 mysql> exit
 
 # Import the empty MySQL database from MYSQL.sql 
-mysql -u misp -p misp < INSTALL/MYSQL.sql
+mysql -u misp -p<password> misp < INSTALL/MYSQL.sql
 
 
-6/ Apache configuration
+7/ Apache configuration
 -----------------------
 # Now configure your apache server with the DocumentRoot /var/www/MISP/app/webroot/
 # A sample ghost can be found in /var/www/MISP/INSTALL/apache.misp
 
 cp /var/www/MISP/INSTALL/apache.misp /etc/apache2/sites-available/misp
+
+# Be aware that the configuration files for apache 2.4 and up have changed. 
+# The configuration file has to have the .conf extension in the sites-available directory
+# For more information, visit http://httpd.apache.org/docs/2.4/upgrading.html
+ 
 a2dissite default
 a2ensite misp
 
@@ -98,54 +115,48 @@ service apache2 reload
 # Check out the apache.misp.ssl file for an example
 
 
-7/ MISP configuration
+8/ MISP configuration
 ---------------------
-# Configure the fields in the files located in /var/www/MISP/app/Config/:
+# There are 3 sample configuration files in /var/www/MISP/app/Config that need to be copied and filled out
+cd /var/www/MISP/app/Config
+cp -a bootstrap.default.php bootstrap.php
+cp -a database.default.php database.php
+cp -a core.default.php core.php
+ 
+# Configure the fields in the newly created filed:
 database.php : login, port, password, database
-bootstrap.php: CyDefSIG.*, GnuPG.*
+bootstrap.php: MISP.*, GnuPG.*
 core.php : debug, Security.*
 
 # and make sure the file permissions are still OK
 chown -R www-data:www-data /var/www/MISP/app/Config
 chmod -R 750 /var/www/MISP/app/Config
 
-
-# Let MISP know where the CakePHP libraries are located by editing the file app/webroot/index.php and setting (on line 59):
-	define('CAKE_CORE_INCLUDE_PATH', '/opt/cakephp/lib');
-# OR create a symlink
-ln -s /opt/cakephp/lib /var/www/MISP/lib 
-
-
 # Generate a GPG encryption key.
 mkdir /var/www/MISP/.gnupg
 chown www-data:www-data /var/www/MISP/.gnupg
 chmod 700 /var/www/MISP/.gnupg
 sudo -u www-data gpg --homedir /var/www/MISP/.gnupg --gen-key
-# Recommended key type: RSA (sign only)
+# Recommended key type: RSA
 # The email address should match the one set int he bootstrap.php configuration file
 
 # And export the public key to the webroot
 sudo -u www-data gpg --homedir /var/www/MISP/.gnupg --export --armor YOUR-EMAIL > /var/www/MISP/app/webroot/gpg.asc
 
+# Start the workers to enable background jobs 
+cd /var/www/MISP/app/Console/worker/
+./start.sh
+
+# To make the background workers start on boot
+chmod +x /var/www/MISP/app/Console/worker/start.sh
+sudo vim /etc/rc.local
+# Add the following line before the last line (exit 0):
+bash /var/www/MISP/app/Console/worker/start.sh
+
 Now log in using the webinterface:
 The default user/pass = admin@admin.test/admin 
 
 Don't forget to change the email, password and authentication key after installation.
-
-
-
-UPDATE INSTRUCTIONS
--------------------
-
-To be sure, dump your database before updating.
-
-CyDefSIG from 0.2.2 to 0.2.3 needs a database migration and population.
-This is done executing /var/www/cydefsig/app/Console/shell/migrate-0.2.2-0.2.3.sh
-and answer (y)es to all the questions asked
-and afterward run http://<host>:<port>/events/migratemisp11to2/<your org>
-with <your org> being MIL.BE or NCIRC where appropriate.
-
-Import the regexp data in /var/www/cydefsig/app/MYSQL.regexp.sql using phpmyadmin or mysql>.
 
 
 Recommended actions
@@ -157,5 +168,3 @@ Recommended actions
 - You should really harden the configuration of MySQL
 - Keep your software up2date (MISP, CakePHP and everything else)
 - Log and audit
-
-
