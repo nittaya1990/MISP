@@ -4,9 +4,9 @@ $mayPublish = ($isAclPublish && $event['Event']['orgc'] == $me['org']);
 
 ?>
 <?php
+	echo $this->Html->script('ajaxification');
 	echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'viewEvent', 'mayModify' => $mayModify, 'mayPublish' => $mayPublish));
 ?>
-
 <div class="events view">
 	<?php
 		if ('true' == Configure::read('MISP.showorg') || $isAdmin) {
@@ -71,6 +71,7 @@ $mayPublish = ($isAclPublish && $event['Event']['orgc'] == $me['org']);
 				<?php
 					if (Configure::read('MISP.tagging')): ?>
 						<dt>Tags</dt>
+<<<<<<< HEAD
 						<dd>
 						<table>
 							<tr>
@@ -116,6 +117,10 @@ $mayPublish = ($isAclPublish && $event['Event']['orgc'] == $me['org']);
 								endif; ?>
 						</tr>
 						</table>
+=======
+						<dd class="eventTagContainer">
+							<?php echo $this->element('ajaxTags', array('event' => $event, 'tags' => $tags)); ?>
+>>>>>>> develop
 						</dd>
 				<?php endif; ?>
 				<dt>Date</dt>
@@ -211,28 +216,23 @@ $mayPublish = ($isAclPublish && $event['Event']['orgc'] == $me['org']);
 	<div id="pivots_div">
 		<?php if (sizeOf($allPivots) > 1) echo $this->element('pivot'); ?>
 	</div>
-	<div id="attributes_div">
-		<?php
-if (!empty($event['Attribute']) || !empty($remaining)):?>
-		<table class="table table-striped table-condensed">
-		<tr>
-			<th>Date</th>
-			<th>Category</th>
-			<th>Type</th>
-			<th>Value</th>
-			<th>Comment</th>
-			<th>Related Events</th>
-			<th title="<?php echo $attrDescriptions['signature']['desc'];?>">IDS</th>
-			<th title="<?php echo $attrDescriptions['distribution']['desc'];?>">Distribution</th>
-			<th class="actions">Actions</th>
-		</tr><?php
-	foreach ($categories as $category):
-		$first = 1;
-		foreach ($event['Attribute'] as $attribute):
-			$extra = "";
-			if ($attribute['category'] != $category) continue;
-			if (count($attribute['ShadowAttribute'])) $extra .= 'highlight1';
+	<div id="attribute_add_form" class="attribute_add_form"></div>
+	<div id="confirmation_box" class="confirmation_box"></div>
+	<div id="attribute_creation_div" style="display:none;">
+		<?php 
+			echo $this->element('eventattributecreation');
 		?>
+	</div>
+	<div id="attributes_div">
+		<?php 
+			echo $this->element('eventattribute');
+		?>
+	</div>
+	<div id="discussions_div">
+		<?php
+			echo $this->element('eventdiscussion');
+		?>
+<<<<<<< HEAD
 		<tr>
 			<td class= "short <?php echo $extra; ?>">
 			<?php
@@ -503,10 +503,14 @@ if (!empty($event['Attribute']) || !empty($remaining)):?>
 				echo $this->element('eventdiscussion');
 			?>
 		</div>
+=======
+	</div>
+>>>>>>> develop
 </div>
 <script type="text/javascript">
 // tooltips
 $(document).ready(function () {
+	//loadEventTags("<?php echo $event['Event']['id']; ?>");	
 	$("th, td, dt, div, span, li").tooltip({
 		'placement': 'top',
 		'container' : 'body',
@@ -548,7 +552,4 @@ $(document).ready(function () {
 		$('#addTagButton').hide();
 	});
 });
-
-
-
 </script>
