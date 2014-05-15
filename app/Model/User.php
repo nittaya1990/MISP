@@ -352,7 +352,7 @@ class User extends AppModel {
 		}
 		return $fails;
 	}
-	
+
 	public function getOrgs() {
 		$this->recursive = -1;
 		$orgs = $this->find('all', array(
@@ -364,14 +364,14 @@ class User extends AppModel {
 		}
 		return $orgNames;
 	}
-	
+
 	public function getOrgMemberCount($org) {
 		return $this->find('count', array(
 				'conditions' => array(
 						'org =' => $org,
 				)));
 	}
-	
+
 	public function verifyGPG() {
 		require_once 'Crypt/GPG.php';
 		$this->Behaviors->detach('Trim');
@@ -395,7 +395,7 @@ class User extends AppModel {
 		}
 		return $results;
 	}
-	
+
 	public function getPGP($id) {
 		$result = $this->find('first', array(
 			'recursive' => -1,

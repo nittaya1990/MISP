@@ -395,7 +395,7 @@ class EventsController extends AppController {
 					$tagNames[$v['Tag']['id']] = $v['Tag']['name'];
 				}
 				$this->set('allTags', $tagNames);
-				
+
 			}
 		}
 		$this->set('currentEvent', $id);
@@ -513,10 +513,10 @@ class EventsController extends AppController {
 		}
 		if ($this->request->is('post')) {
 			if ($this->_isRest()) {
-				
+
 				// rearrange the response if the event came from an export
 				if(isset($this->request->data['response'])) $this->request->data = $this->request->data['response'];
-				
+
 				// Distribution, reporter for the events pushed will be the owner of the authentication key
 				$this->request->data['Event']['user_id'] = $this->Auth->user('id');
 			}
@@ -532,6 +532,7 @@ class EventsController extends AppController {
 					$this->Session->setFlash(__('You may only upload GFI Sandbox zip files.'));
 				} else {
 					if ($this->_isRest()) $this->request->data = $this->Event->updateXMLArray($this->request->data, false);
+                    //die(debug($this->request->data));
 					$add = $this->Event->_add($this->request->data, $this->_isRest(), $this->Auth->user(), '');
 					if ($add && !is_numeric($add)) {
 						if ($this->_isRest()) {
@@ -1019,7 +1020,7 @@ class EventsController extends AppController {
 			$this->Event->deleteEventFromServer($uuid, $server, $HttpSocket);
 		}
 	}
-	
+
 	/**
 	 * Publishes the event without sending an alert email
 	 *
@@ -1162,11 +1163,11 @@ class EventsController extends AppController {
 		// Check if the background jobs are enabled - if not, fall back to old export page.
 		if (Configure::read('MISP.background_jobs')) {
 			$now = time();
-			
+
 			// as a site admin we'll use the ADMIN identifier, not to overwrite the cached files of our own org with a file that includes too much data.
 			if ($this->_isSiteAdmin()) {
 				$useOrg = 'ADMIN';
-				$conditions = null;			
+				$conditions = null;
 			} else {
 				$useOrg = $this->Auth->User('org');
 				$conditions['OR'][] = array('orgc' => $this->Auth->user('org'));
@@ -1207,7 +1208,7 @@ class EventsController extends AppController {
 						$this->Event->export_types[$k]['recommendation'] = 1;
 					}
 				}
-				
+
 				$this->Event->export_types[$k]['lastModified'] = $lastModified;
 				if (!empty($job)) {
 					$this->Event->export_types[$k]['job_id'] = $job['Job']['id'];
@@ -1232,7 +1233,7 @@ class EventsController extends AppController {
 			$this->render('/Events/export_alternate');
 		}
 	}
-	
+
 
 	public function downloadExport($type, $extra = null) {
 		if ($this->_isSiteAdmin()) $org = 'ADMIN';
@@ -1244,7 +1245,7 @@ class EventsController extends AppController {
 		$newFileName = 'misp.' . $this->Event->export_types[$type]['type'] . '.' . $org . $this->Event->export_types[$type]['extension'];
 		$this->response->file($path, array('download' => true));
 	}
-	
+
 	private function __timeDifference($now, $then) {
 		$periods = array("second", "minute", "hour", "day", "week", "month", "year");
 		$lengths = array("60","60","24","7","4.35","12");
@@ -1391,7 +1392,7 @@ class EventsController extends AppController {
 	// csv function
 	// Usage: csv($key, $eventid)   - key can be a valid auth key or the string 'download'. Download requires the user to be logged in interactively and will generate a .csv file
 	// $eventid can be one of 3 options: left empty it will get all the visible to_ids attributes,
-	// $ignore is a flag that allows the export tool to ignore the ids flag. 0 = only IDS signatures, 1 = everything. 
+	// $ignore is a flag that allows the export tool to ignore the ids flag. 0 = only IDS signatures, 1 = everything.
 	public function csv($key, $eventid=0, $ignore=0, $tags = '', $category=null, $type=null) {
 		if ($category == 'null') $category = null;
 		if ($type == 'null') $type = null;
@@ -1412,7 +1413,7 @@ class EventsController extends AppController {
 			}
 			$isSiteAdmin = $this->_isSiteAdmin();
 			$org = $this->Auth->user('org');
-		}		
+		}
 		// if it's a search, grab the attributeIDList from the session and get the IDs from it. Use those as the condition
 		// We don't need to look out for permissions since that's filtered by the search itself
 		// We just want all the attributes found by the search
@@ -1439,7 +1440,7 @@ class EventsController extends AppController {
 		foreach ($attributes as $attribute) {
 			$final[] = $attribute['Attribute']['uuid'] . ',' . $attribute['Attribute']['event_id'] . ',' . $attribute['Attribute']['category'] . ',' . $attribute['Attribute']['type'] . ',' . $attribute['Attribute']['value'] . ',' . intval($attribute['Attribute']['to_ids']) . ',' . $attribute['Attribute']['timestamp'];
 		}
-		
+
 		$this->response->type('csv');	// set the content type
 		if ($eventid == 0) {
 			$this->header('Content-Disposition: download; filename="misp.all_attributes.csv"');
@@ -1647,8 +1648,8 @@ class EventsController extends AppController {
 			if (!isset($xmlArray['response']) || !isset($xmlArray['response']['Event'])) {
 				throw new Exception('This is not a valid MISP XML file.');
 			}
-			$xmlArray = $this->Event->updateXMLArray($xmlArray);	
-			
+			$xmlArray = $this->Event->updateXMLArray($xmlArray);
+
 			if (isset($xmlArray['response']['Event'][0])) {
 				foreach ($xmlArray['response']['Event'] as $event) {
 					$temp['Event'] = $event;
@@ -1665,7 +1666,7 @@ class EventsController extends AppController {
 		$this->loadModel('Attribute');
 		$this->Event->recursive = -1;
 		$this->Event->read(array('id', 'uuid', 'distribution'), $id);
-		
+
 		// import XML class
 		App::uses('Xml', 'Utility');
 		// now parse it
@@ -1681,7 +1682,7 @@ class EventsController extends AppController {
 				$dist .= Configure::read('MISP.default_attribute_distribution');
 			}
 		}
-		
+
 		//Payload delivery -- malware-sample
 		$results = $parsedXml->xpath('/analysis');
 		foreach ($results as $result) {
@@ -1693,7 +1694,7 @@ class EventsController extends AppController {
 		$rootDir = APP . "files" . DS . $id . DS;
 		$malware = $rootDir . DS . 'sample';
 		$this->Event->Attribute->uploadAttachment($malware,	$realFileName,	true, $id, null, '', $this->Event->data['Event']['uuid'] . '-sample', $dist, true);
-		
+
 		//Network activity -- .pcap
 		$realFileName = 'analysis.pcap';
 		$rootDir = APP . "files" . DS . $id . DS;
@@ -1946,7 +1947,7 @@ class EventsController extends AppController {
 			$subcondition['OR'][] = array('Event.org' => $user['User']['org']);
 			array_push($conditions['AND'], $subcondition);
 		}
-		
+
 		// If we sent any tags along, load the associated tag names for each attribute
 		if ($tags) {
 			$args = $this->Event->Attribute->dissectArgs($tags);
@@ -2083,7 +2084,7 @@ class EventsController extends AppController {
 		}
 		$this->Event->_add($data, false, $this->Auth->user());
 	}
-	
+
 	public function proposalEventIndex() {
 		$this->loadModel('ShadowAttribute');
 		$this->ShadowAttribute->recursive = -1;
@@ -2107,7 +2108,7 @@ class EventsController extends AppController {
 				'contain' => array(
 					'User' => array(
 							'fields' => array(
-								'User.email'	
+								'User.email'
 					)),
 					'ShadowAttribute'=> array(
 						'fields' => array(
@@ -2128,12 +2129,12 @@ class EventsController extends AppController {
 		$this->set('analysisLevels', $this->Event->analysisLevels);
 		$this->set('distributionLevels', $this->Event->distributionLevels);
 	}
-	
+
 	private function __setHeaderForAdd($eventId) {
 		$this->response->header('Location', Configure::read('MISP.baseurl') . '/events/' . $eventId);
 		$this->response->send();
 	}
-	
+
 	public function reportValidationIssuesEvents() {
 		// search for validation problems in the events
 		if (!self::_isSiteAdmin()) throw new NotFoundException();
@@ -2143,7 +2144,7 @@ class EventsController extends AppController {
 		$this->set('result', $result);
 		$this->set('count', $count);
 	}
-	
+
 
 	public function generateLocked() {
 		if (!self::_isSiteAdmin()) throw new NotFoundException();
@@ -2151,14 +2152,14 @@ class EventsController extends AppController {
 		$this->Session->setFlash('Events updated, '. $toBeUpdated . ' record(s) altered.');
 		$this->redirect(array('controller' => 'pages', 'action' => 'display', 'administration'));
 	}
-	
+
 	public function generateThreatLevelFromRisk() {
 		if (!self::_isSiteAdmin()) throw new NotFoundException();
 		$updated = $this->Event->generateThreatLevelFromRisk();
 		$this->Session->setFlash('Events updated, '. $updated . ' record(s) altered.');
 		$this->redirect(array('controller' => 'pages', 'action' => 'display', 'administration'));
 	}
-	
+
 	public function addTag() {
 		if (!$this->request->is('post')) {
 			throw new MethodNotAllowedException('You don\'t have permission to do that.');
@@ -2191,7 +2192,7 @@ class EventsController extends AppController {
 		$this->Session->setFlash('Tag added.');
 		$this->redirect(array('action' => 'view', $id));
 	}
-	
+
 	public function removeTag($id, $tag_id) {
 		if (!$this->request->is('post')) {
 			throw new MethodNotAllowedException('You don\'t have permission to do that.');

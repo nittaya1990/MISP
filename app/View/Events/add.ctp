@@ -28,7 +28,7 @@
             'multiple' => 'checkbox',
             'div' => 'input clear',
             'selected' => $selectedSharingGroups));
-        echo $this->Form->input('Server', array('multiple' => 'checkbox', 'div' => 'input clear'));
+        //echo $this->Form->input('Server', array('multiple' => 'checkbox', 'div' => 'input clear'));
 		echo $this->Form->input('info', array(
 					'label' => 'Event Description',
 					'div' => 'clear',

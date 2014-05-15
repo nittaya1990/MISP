@@ -27,7 +27,7 @@ class Event extends AppModel {
 	public $displayField = 'id';
 
 	public $virtualFields = array();
-	
+
 	public $mispVersion = '2.2.0';
 
 /**
@@ -114,7 +114,7 @@ class Event extends AppModel {
 					'description' => 'Click on one of the buttons below to download all the attributes with the matching type. This list can be used to feed forensic software when searching for susipicious files. Only published events and attributes marked as IDS Signature are exported.'
 			)
 	);
-	
+
 /**
  * Validation rules
  *
@@ -328,10 +328,10 @@ class Event extends AppModel {
 	public function beforeDelete($cascade = true) {
 		// delete event from the disk
 		$this->read();	// first read the event from the db
-		
+
 		// delete all of the event->tag combinations that involve the deleted event
 		$this->EventTag->deleteAll(array('event_id' => $this->id));
-		
+
 		// FIXME secure this filesystem access/delete by not allowing to change directories or go outside of the directory container.
 		// only delete the file if it exists
 		$filepath = APP . "files" . DS . $this->data['Event']['id'];
@@ -810,7 +810,7 @@ class Event extends AppModel {
 				// different actions if it's only 1 event or more
 				// only one event.
 				if (isset($eventArray['response']['Event']['id'])) {
-					if ($this->checkIfNewer($eventArray['response']['Event'])) { 
+					if ($this->checkIfNewer($eventArray['response']['Event'])) {
 						$eventIds[] = $eventArray['response']['Event']['id'];
 					}
 				} else {
@@ -856,7 +856,7 @@ class Event extends AppModel {
 		$results = $this->find('all', $params);
 		return $results;
 	}
-	
+
 	//Once the data about the user is gathered from the appropriate sources, fetchEvent is called from the controller.
 	public function fetchEvent($eventid = null, $idList = null, $org, $isSiteAdmin, $bkgrProcess = null, $tags = '') {
 		if (isset($eventid)) {
@@ -870,7 +870,7 @@ class Event extends AppModel {
 		}
 		$me['org'] = $org;
 		// if we come from automation, we may not be logged in - instead we used an auth key in the URL.
-		
+
 		$conditionsAttributes = array();
 		//restricting to non-private or same org if the user is not a site-admin.
 		if (!$isSiteAdmin) {
@@ -883,7 +883,7 @@ class Event extends AppModel {
 				'(SELECT events.org FROM events WHERE events.id = Attribute.event_id) LIKE' => $org
 			);
 		}
-			
+
 		if ($idList && $tags == '') {
 			$conditions['AND'][] = array('Event.id' => $idList);
 		}
@@ -904,22 +904,24 @@ class Event extends AppModel {
 			}
 			$conditions['AND'][] = $temp;
 		}
-		
+
 		// removing this for now, we export the to_ids == 0 attributes too, since there is a to_ids field indicating it in the .xml
 		// $conditionsAttributes['AND'] = array('Attribute.to_ids =' => 1);
 		// Same idea for the published. Just adjust the tools to check for this
 		// TODO: It is important to make sure that this is documented
 		// $conditions['AND'][] = array('Event.published =' => 1);
-		
+
 		// do not expose all the data ...
 		$fields = array('Event.id', 'Event.org', 'Event.date', 'Event.threat_level_id', 'Event.info', 'Event.published', 'Event.uuid', 'Event.attribute_count', 'Event.analysis', 'Event.timestamp', 'Event.distribution', 'Event.proposal_email_lock', 'Event.orgc', 'Event.user_id', 'Event.locked', 'Event.publish_timestamp');
 		$fieldsAtt = array('Attribute.id', 'Attribute.type', 'Attribute.category', 'Attribute.value', 'Attribute.to_ids', 'Attribute.uuid', 'Attribute.event_id', 'Attribute.distribution', 'Attribute.timestamp', 'Attribute.comment');
 		$fieldsShadowAtt = array('ShadowAttribute.id', 'ShadowAttribute.type', 'ShadowAttribute.category', 'ShadowAttribute.value', 'ShadowAttribute.to_ids', 'ShadowAttribute.uuid', 'ShadowAttribute.event_id', 'ShadowAttribute.old_id', 'ShadowAttribute.comment', 'ShadowAttribute.org');
-			
+
 		$params = array('conditions' => $conditions,
 			'recursive' => 0,
 			'fields' => $fields,
 			'contain' => array(
+                'User',
+                'SharingGroup',
 				'ThreatLevel' => array(
 						'fields' => array('ThreatLevel.name')
 				),
@@ -933,6 +935,30 @@ class Event extends AppModel {
 			)
 		);
 		if ($isSiteAdmin) $params['contain']['User'] = array('fields' => 'email');
+        if(!$isSiteAdmin){
+            $org_sharing = $this->User->Organisation->read(null, CakeSession::read('Auth.User.organisation_id'));
+            $params['contain']['User'] = array('fields' => 'email');
+            if(!empty($org_sharing)){
+                $params['joins'] = array(
+                        array(
+                            'table' => 'events_sharing_groups',
+                            'alias' => 'EventsSharingGroup',
+                            'type' => 'inner',
+                            'conditions'=> array('EventsSharingGroup.event_id = Event.id')
+                        ),
+                        array(
+                            'table' => 'sharing_groups',
+                            'alias' => 'SharingGroup',
+                            'type' => 'inner',
+                            'conditions'=> array(
+                                'SharingGroup.id = EventsSharingGroup.sharing_group_id',
+                                'SharingGroup.id' => Set::extract('/SharingGroup/id', $org_sharing)
+                                )
+                        )
+                    );
+            }
+        }
+
 		$results = $this->find('all', $params);
 		// Do some refactoring with the event
 		foreach ($results as $eventKey => &$event) {
@@ -1011,15 +1037,15 @@ class Event extends AppModel {
 	 		if ($ignore == 0) {
 	 			$conditions['AND'][] = array('Attribute.to_ids =' => 1);
 	 		}
-	 		
+
 	 		if ($type!=null) {
 	 			$conditions['AND'][] = array('Attribute.type' => $type);
 	 		}
-	 		
+
 	 		if ($category!=null) {
 	 			$conditions['AND'][] = array('Attribute.category' => $category);
 	 		}
-	 		
+
 	 		if (!$isSiteAdmin) {
 	 			$temp = array();
 	 			$distribution = array();
@@ -1044,7 +1070,7 @@ class Event extends AppModel {
 	 	}
 	 	return $attributes;
 	 }
-	 
+
 	 public function sendAlertEmailRouter($id, $user) {
 	 	if (Configure::read('MISP.background_jobs')) {
 	 		$job = ClassRegistry::init('Job');
@@ -1070,18 +1096,18 @@ class Event extends AppModel {
 	 	} else {
 	 		return ($this->sendAlertEmail($id, $user['org']));
 	 	}
-	 } 
-	
+	 }
+
 	public function sendAlertEmail($id, $org, $processId = null) {
 		$this->recursive = 1;
 		$event = $this->read(null, $id);
-		
+
 		// Initialise the Job class if we have a background process ID
 		// This will keep updating the process's progress bar
 		if ($processId) {
 			$this->Job = ClassRegistry::init('Job');
 		}
-		
+
 		// The mail body, h() is NOT needed as we are sending plain-text mails.
 		$body = "";
 		$body .= '==============================================' . "\n";
@@ -1112,7 +1138,7 @@ class Event extends AppModel {
 				$ids = '';
 				if ($attribute['to_ids']) $ids = ' (IDS)';
 				if (isset($event['Event']['publish_timestamp']) && isset($attribute['timestamp']) && $attribute['timestamp'] > $event['Event']['publish_timestamp']) {
-					$line = '*' . $attribute['type'] . str_repeat(' ', $appendlen - 2 - strlen($attribute['type'])) . ': ' . $attribute['value'] . $ids . "\n";					
+					$line = '*' . $attribute['type'] . str_repeat(' ', $appendlen - 2 - strlen($attribute['type'])) . ': ' . $attribute['value'] . $ids . "\n";
 				} else {
 					$line = $attribute['type'] . str_repeat(' ', $appendlen - 2 - strlen($attribute['type'])) . ': ' . $attribute['value'] . $ids .  "\n";
 				}
@@ -1126,7 +1152,7 @@ class Event extends AppModel {
 				elseif ('domain' == $attribute['type'] or 'ip-src' == $attribute['type'] or 'ip-dst' == $attribute['type']) {
 					$line = str_replace(".","[.]", $line);
 				}
-				
+
 				if ('other' == $attribute['type']) // append the 'other' attribute types to the bottom.
 					$bodyTempOther .= $line;
 				else $body .= $line;
@@ -1135,7 +1161,7 @@ class Event extends AppModel {
 		if (!empty($bodyTempOther)) {
 			$body .= "\n";
 		}
-		
+
 		if (Configure::read('MISP.extended_alert_subject')) {
 			$subject = preg_replace( "/\r|\n/", "", $event['Event']['info']);
 			if (strlen($subject) > 55) {
@@ -1245,7 +1271,7 @@ class Event extends AppModel {
  	// LATER check if sending email succeeded and return appropriate result
  	return true;
 	}
-	
+
 	public function sendContactEmail($id, $message, $all, $user, $isSiteAdmin) {
 		// fetch the event
 		$event = $this->read(null, $id);
@@ -1264,7 +1290,7 @@ class Event extends AppModel {
 		} else {
 			$orgMembers = $this->User->findAllById($event['Event']['user_id'], array('email', 'gpgkey'));
 		}
-	
+
 		// The mail body, h() is NOT needed as we are sending plain-text mails.
 		$body = "";
 		$body .= "Hello, \n";
@@ -1280,7 +1306,7 @@ class Event extends AppModel {
 		$body .= "\n";
 		$body .= "\n";
 		$body .= "The event is the following: \n";
-	
+
 		// print the event in mail-format
 		// LATER place event-to-email-layout in a function
 		$appendlen = 20;
@@ -1296,7 +1322,7 @@ class Event extends AppModel {
 		if (!empty($relatedEvents)) {
 			foreach ($relatedEvents as &$relatedEvent) {
 				$body .= 'Related to  : ' . Configure::read('MISP.baseurl') . '/events/view/' . $relatedEvent['Event']['id'] . ' (' . $relatedEvent['Event']['date'] . ')' . "\n";
-	
+
 			}
 		}
 		$body .= 'Info  : ' . "\n";
@@ -1342,7 +1368,7 @@ class Event extends AppModel {
 				try {
 				$gpg = new Crypt_GPG(array('homedir' => Configure::read('GnuPG.homedir')));
 				$gpg->addEncryptKey($keyImportOutput['fingerprint']); // use the key that was given in the import
-	
+
 				$bodyEncSig = $gpg->encrypt($bodySigned, true);
 				} catch (Exception $e){
 				// catch errors like expired PGP keys
@@ -1378,7 +1404,7 @@ class Event extends AppModel {
 		if ($user['User']['gpgkey'] != null) unlink($tmpfname);
 		return $result;
 	}
-	
+
 	/**
 	 * Low level function to add an Event based on an Event $data array
 	 *
@@ -1392,7 +1418,7 @@ class Event extends AppModel {
 		// force check userid and orgname to be from yourself
 		$data['Event']['user_id'] = $user['id'];
 		$date = new DateTime();
-	
+
 		//if ($this->checkAction('perm_sync')) $data['Event']['org'] = Configure::read('MISP.org');
 		//else $data['Event']['org'] = $auth->user('org');
 		$data['Event']['org'] = $user['org'];
@@ -1423,11 +1449,14 @@ class Event extends AppModel {
 				unset ($attribute['id']);
 			}
 		}
+
 		// FIXME chri: validatebut  the necessity for all these fields...impact on security !
 		$fieldList = array(
 				'Event' => array('org', 'orgc', 'date', 'threat_level_id', 'analysis', 'info', 'user_id', 'published', 'uuid', 'timestamp', 'distribution', 'locked'),
 				'Attribute' => array('event_id', 'category', 'type', 'value', 'value1', 'value2', 'to_ids', 'uuid', 'revision', 'timestamp', 'distribution', 'comment')
 		);
+        //die(debug($data));
+        //$data['SharingGroup'] = $data['SharingGroup']['SharingGroup'];
 		$saveResult = $this->saveAssociated($data, array('validate' => true, 'fieldList' => $fieldList,
 				'atomic' => true));
 		// FIXME chri: check if output of $saveResult is what we expect when data not valid, see issue #104
@@ -1445,7 +1474,7 @@ class Event extends AppModel {
 			return false;
 		}
 	}
-	
+
 	public function _edit(&$data, $id, $jobId = null) {
 		if ($jobId) {
 			App::import('Component','Auth');
@@ -1453,7 +1482,7 @@ class Event extends AppModel {
 		$localEvent = $this->find('first', array('conditions' => array('Event.id' => $id), 'recursive' => -1, 'contain' => array('Attribute', 'ThreatLevel', 'ShadowAttribute')));
 		if (!isset ($data['Event']['orgc'])) $data['Event']['orgc'] = $data['Event']['org'];
 		if ($localEvent['Event']['timestamp'] < $data['Event']['timestamp']) {
-	
+
 		} else {
 			return 'Event exists and is the same or newer.';
 		}
@@ -1494,14 +1523,14 @@ class Event extends AppModel {
 	}
 		else return 'Saving the event has failed.';
 	}
-	
+
 	private function __searchUuidInAttributeArray($uuid, &$attr_array) {
 		foreach ($attr_array['Attribute'] as &$attr) {
 			if ($attr['uuid'] == $uuid)	return array('Attribute' => $attr);
 		}
 		return false;
 	}
-	
+
 	/**
 	 * Uploads this specific event to all remote servers
 	 * TODO move this to a component
@@ -1514,7 +1543,7 @@ class Event extends AppModel {
 		$this->recursive = 1;
 		$this->read();
 		$this->data['Event']['locked'] = 1;
-	
+
 		// get a list of the servers
 		$server = ClassRegistry::init('Server');
 		$servers = $server->find('all', array(
@@ -1523,7 +1552,7 @@ class Event extends AppModel {
 		// iterate over the servers and upload the event
 		if(empty($servers))
 			return true;
-	
+
 		$uploaded = true;
 		$failedServers = array();
 		App::uses('SyncTool', 'Tools');
@@ -1545,7 +1574,7 @@ class Event extends AppModel {
 			return true;
 		}
 	}
-	
+
 	public function publishRouter($id, $passAlong = null, $org = null, $email = null) {
 		if (Configure::read('MISP.background_jobs')) {
 			$job = ClassRegistry::init('Job');
@@ -1573,7 +1602,7 @@ class Event extends AppModel {
 			return $result;
 		}
 	}
-	
+
 	/**
 	 * Performs all the actions required to publish an event
 	 *
@@ -1590,7 +1619,7 @@ class Event extends AppModel {
 		$fieldList = array('published', 'id', 'info', 'publish_timestamp');
 		$event['Event']['published'] = 1;
 		$event['Event']['publish_timestamp'] = time();
-		$this->save($event, array('fieldList' => $fieldList));		
+		$this->save($event, array('fieldList' => $fieldList));
 		$uploaded = false;
 		if ('true' == Configure::read('MISP.sync') && $event['Event']['distribution'] > 1) {
 			$uploaded = $this->uploadEventToServersRouter($id, $passAlong);
@@ -1602,7 +1631,7 @@ class Event extends AppModel {
 		}
 		return $uploaded;
 	}
-	
+
 
 	/**
 	 *
@@ -1648,7 +1677,7 @@ class Event extends AppModel {
 			return $result;
 		}
 	}
-	
+
 	public function generateLocked() {
 		$this->User = ClassRegistry::init('User');
 		$this->User->recursive = -1;
@@ -1688,7 +1717,7 @@ class Event extends AppModel {
 		);
 		return $toBeUpdated;
 	}
-	
+
 	public function reportValidationIssuesEvents() {
 		$this->Behaviors->detach('Regexp');
 		// get all events..
@@ -1702,7 +1731,7 @@ class Event extends AppModel {
 				// validates
 			} else {
 				$errors = $this->validationErrors;
-		
+
 				$result[$i]['id'] = $event['Event']['id'];
 				// print_r
 				$result[$i]['error'] = $errors;
@@ -1712,7 +1741,7 @@ class Event extends AppModel {
 		}
 		return array($result, $k);
 	}
-	
+
 	public function generateThreatLevelFromRisk() {
 		$risk = array('Undefined' => 4, 'Low' => 3, 'Medium' => 2, 'High' => 1);
 		$events = $this->find('all', array('recursive' => -1));
@@ -1724,12 +1753,12 @@ class Event extends AppModel {
 		}
 		return $k;
 	}
-	
+
 	// check two version strings. If version 1 is older than 2, return -1, if they are the same return 0, if version 2 is older return 1
 	public function compareVersions($version1, $version2) {
 		$version1Array = explode('.', $version1);
 		$version2Array = explode('.', $version2);
-	
+
 		if ($version1Array[0] != $version2Array[0]) {
 			if ($version1Array[0] > $version2Array[0]) return 1;
 			else return -1;
@@ -1743,14 +1772,14 @@ class Event extends AppModel {
 			else return -1;
 		}
 	}
-	
+
 	// main dispatch method for updating an incoming xmlArray - pass xmlArray to all of the appropriate transformation methods to make all the changes necessary to save the imported event
 	public function updateXMLArray($xmlArray, $response = true) {
 		if (isset($xmlArray['xml_version']) && $response) {
 			$xmlArray['response']['xml_version'] = $xmlArray['xml_version'];
 			unset($xmlArray['xml_version']);
 		}
-		
+
 		if (!$response) {
 			$temp = $xmlArray;
 			$xmlArray = array();
@@ -1771,15 +1800,15 @@ class Event extends AppModel {
 		if ($version == 1) throw new Exception('This XML file is from a MISP instance that is newer than the current instance. Please contact your administrator about upgrading this instance.');
 
 		// if the xml contains an event or events from an older MISP instance, let's try to upgrade it!
-		// Let's manually set the version to something below 2.2.0 if there is no version set in the xml		
-		if (!isset($xmlArray['response']['xml_version'])) $xmlArray['response']['xml_version'] = '2.1.0'; 
-		
+		// Let's manually set the version to something below 2.2.0 if there is no version set in the xml
+		if (!isset($xmlArray['response']['xml_version'])) $xmlArray['response']['xml_version'] = '2.1.0';
+
 		// Upgrade from versions below 2.2.0 will need to replace the risk field with threat level id
 		if ($this->compareVersions($xmlArray['response']['xml_version'], '2.2.0') < 0) {
 			if ($response) $xmlArray['response'] = $this->__updateXMLArray220($xmlArray['response']);
 			else $xmlArray = $this->__updateXMLArray220($xmlArray);
 		}
-		
+
 		unset ($xmlArray['response']['xml_version']);
 		if ($response) return $xmlArray;
 		else return $xmlArray['response'];
@@ -1801,7 +1830,7 @@ class Event extends AppModel {
 		}
 		return $xmlArray;
 	}
-	
+
 
 	public function checkIfNewer($incomingEvent) {
 		$localEvent = $this->find('first', array('conditions' => array('uuid' => $incomingEvent['uuid']), 'recursive' => -1));

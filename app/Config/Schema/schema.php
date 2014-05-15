@@ -104,6 +104,7 @@ class AppSchema extends CakeSchema {
     public $organisations_sharing_groups = array(
         'id' => array('type' => 'integer', 'null' => false, 'default' => null, 'key' => 'primary'),
         'organisation_id' => array('type' => 'integer', 'null' => false, 'default' => null),
+        'sharing_group_id' => array('type' => 'integer', 'null' => false, 'default' => null),
         'created' => array('type' => 'datetime', 'null' => true, 'default' => null),
         'updated' => array('type' => 'datetime', 'null' => true, 'default' => null),
         'indexes' => array(
@@ -144,7 +145,7 @@ class AppSchema extends CakeSchema {
 
 	public $organisations = array(
 		'id' => array('type' => 'integer', 'null' => false, 'default' => null, 'key' => 'primary'),
-		'sharing_group_id' => array('type' => 'integer', 'null' => false, 'default' => null),
+		//'sharing_group_id' => array('type' => 'integer', 'null' => false, 'default' => null),
 		'name' => array('type' => 'string', 'null' => false, 'collate' => 'utf8_general_ci', 'charset' => 'utf8'),
 		'created' => array('type' => 'datetime', 'null' => true, 'default' => null),
 		'updated' => array('type' => 'datetime', 'null' => true, 'default' => null),
