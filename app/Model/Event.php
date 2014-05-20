@@ -1545,10 +1545,10 @@ class Event extends AppModel {
 		$this->data['Event']['locked'] = 1;
 
 		// get a list of the servers
-		$server = ClassRegistry::init('Server');
+		/*$server = ClassRegistry::init('Server');
 		$servers = $server->find('all', array(
 				'conditions' => array('Server.push' => true)
-		));
+		));*/
 		// iterate over the servers and upload the event
 		if(empty($servers))
 			return true;
@@ -1556,7 +1556,7 @@ class Event extends AppModel {
 		$uploaded = true;
 		$failedServers = array();
 		App::uses('SyncTool', 'Tools');
-		foreach ($servers as &$server) {
+		foreach ($this->data['Servers'] as &$server) {
 			$syncTool = new SyncTool();
 			$HttpSocket = $syncTool->setupHttpSocket($server);
 			//Skip servers where the event has come from.

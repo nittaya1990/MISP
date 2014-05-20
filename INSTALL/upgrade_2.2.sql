@@ -121,6 +121,13 @@ CREATE TABLE IF NOT EXISTS `events_sharing_groups` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;
 
+CREATE TABLE IF NOT EXISTS `events_servers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `event_id` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;
+
 CREATE TABLE IF NOT EXISTS `organisations` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `sharing_group_id` int(11) NOT NULL,
