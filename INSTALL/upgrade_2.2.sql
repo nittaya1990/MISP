@@ -104,6 +104,42 @@ CREATE TABLE IF NOT EXISTS `jobs` (
 ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
 
 
+CREATE TABLE IF NOT EXISTS `sharing_groups` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `category` varchar(255) DEFAULT NULL,
+  `description` text,
+  KEY `id` (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+
+CREATE TABLE IF NOT EXISTS `events_sharing_groups` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `event_id` int(11) NOT NULL,
+  `sharing_group_id` int(11) NOT NULL,
+  `created` datetime DEFAULT NULL,
+  `updated` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;
+
+CREATE TABLE IF NOT EXISTS `organisations` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `sharing_group_id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `created` datetime DEFAULT NULL,
+  `updated` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+
+CREATE TABLE IF NOT EXISTS `organisations_sharing_groups` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `organisation_id` int(11) NOT NULL,
+  `sharing_group_id` int(11) NOT NULL,
+  `created` datetime DEFAULT NULL,
+  `updated` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;
+
+
 call AddColumnUnlessExists(Database(), 'attributes', 'comment', 'TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL');
 
 call AddColumnUnlessExists(Database(), 'events', 'threat_level_id', 'int(11) NOT NULL');

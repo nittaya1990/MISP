@@ -357,6 +357,66 @@ CREATE TABLE IF NOT EXISTS `whitelist` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `sharing_groups`
+--
+
+CREATE TABLE IF NOT EXISTS `sharing_groups` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `category` varchar(255) DEFAULT NULL,
+  `description` text,
+  KEY `id` (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `events_sharing_groups`
+--
+
+CREATE TABLE IF NOT EXISTS `events_sharing_groups` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `event_id` int(11) NOT NULL,
+  `sharing_group_id` int(11) NOT NULL,
+  `created` datetime DEFAULT NULL,
+  `updated` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `organisations`
+--
+
+CREATE TABLE IF NOT EXISTS `organisations` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `sharing_group_id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `created` datetime DEFAULT NULL,
+  `updated` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `organisations_sharing_groups`
+--
+
+CREATE TABLE IF NOT EXISTS `organisations_sharing_groups` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `organisation_id` int(11) NOT NULL,
+  `sharing_group_id` int(11) NOT NULL,
+  `created` datetime DEFAULT NULL,
+  `updated` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;
+
+
+-- --------------------------------------------------------
+
+--
 -- Default values for initial installation
 --
 
@@ -413,7 +473,7 @@ VALUES ('2', 'Org Admin', NOW() , NOW() , '1', '1', '1' , '1', '1', '1', '1', '0
 INSERT INTO `roles` (`id` ,`name` ,`created` ,`modified` ,`perm_add` ,`perm_modify` ,`perm_modify_org` ,`perm_publish` ,`perm_sync` ,`perm_admin` ,`perm_audit` ,`perm_full` ,`perm_auth`, `perm_regexp_access`, `perm_tagger`, `perm_site_admin`)
 VALUES ('3', 'User', NOW() , NOW() , '1', '1', '1' , '0' , '0' , '0' , '0' , '0' , '0', '0', '0', '0');
 
-INSERT INTO `roles` 
+INSERT INTO `roles`
 (`id`, `name`, `created`, `modified`, `perm_add`, `perm_modify`, `perm_modify_org`, `perm_publish`, `perm_sync`, `perm_admin`, `perm_audit`, `perm_full`, `perm_auth`, `perm_regexp_access`, `perm_tagger`, `perm_site_admin`)
 VALUES ('4', 'Sync user', NOW(), NOW(), '1', '1', '1', '1', '1', '0', '0', '0', '1', '0', '0', '0');
 
