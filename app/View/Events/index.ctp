@@ -82,7 +82,7 @@
 				echo $this->Form->input('searchtag', array('value' => $this->passedArgs['searchtag'], 'type' => 'hidden', 'id' => false));
 				?>
 				<span id="searchpublished">
-					<?php 
+					<?php
 					echo $this->Form->input('searchpublished', array(
 							'options' => array('0' => 'No', '1' => 'Yes', '2' => 'Any'),
 							'default' => 2,
@@ -110,7 +110,7 @@
 				echo $this->Form->input('searchtag', array('value' => $this->passedArgs['searchtag'], 'type' => 'hidden', 'id' => false));
 				?>
 				<span id="searchorg">
-				<?php 
+				<?php
 				echo $this->Form->input('searchorg', array(
 					'value' => $this->passedArgs['searchorg'],
 					'label' => '',
@@ -143,7 +143,7 @@
 					echo $this->Form->input('searchinfo', array('value' => $this->passedArgs['searchinfo'], 'type' => 'hidden'));
 					?>
 					<span id="searchtag">
-					<?php 
+					<?php
 					echo $this->Form->input('searchtag', array(
 							'options' => array($tags),
 							'value' => $this->passedArgs['searchtag'],
@@ -213,12 +213,12 @@
 					echo $this->Form->input('searchtag', array('value' => $this->passedArgs['searchtag'], 'type' => 'hidden', 'id' => false));
 					?>
 					<span id="searchinfo">
-					<?php 
+					<?php
 					echo $this->Form->input('searchinfo', array(
 							'value' => $this->passedArgs['searchinfo'],
 							'label' => '',
 							'class' => 'input-large',
-							'div' => false			
+							'div' => false
 					));
 				?>
 					<input type="submit" style="visibility:collapse;" />
@@ -260,7 +260,7 @@
 				&nbsp;
 			</td>
 			<?php endif;?>
-			<?php if ('true' == $isSiteAdmin): ?>
+			<?php if ($isSiteAdmin): ?>
 			<td class="short" onclick="document.location.href ='/events/view/<?php echo $event['Event']['id'];?>'">
 				<?php
 					$imgRelativePath = 'orgs' . DS . h($event['Event']['org']) . '.png';
@@ -284,7 +284,7 @@
 			<td class="short" onclick="location.href ='/events/view/<?php echo $event['Event']['id'];?>'">
 				<?php echo $event['Event']['attribute_count']; ?>&nbsp;
 			</td>
-			<?php if ('true' == $isSiteAdmin): ?>
+			<?php if ($isSiteAdmin): ?>
 			<td class="short" onclick="location.href ='/events/view/<?php echo $event['Event']['id'];?>'">
 				<?php echo h($event['User']['email']); ?>&nbsp;
 			</td>
@@ -293,7 +293,7 @@
 				<?php echo $event['Event']['date']; ?>&nbsp;
 			</td>
 			<td class="short" onclick="location.href ='/events/view/<?php echo $event['Event']['id'];?>'">
-				<?php 
+				<?php
 				if ($event['ThreatLevel']['name']) echo h($event['ThreatLevel']['name']);
 				else echo h($event['Event']['threat_level_id']);
 				?>&nbsp;
