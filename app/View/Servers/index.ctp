@@ -36,8 +36,8 @@ foreach ($servers as $server): ?>
 		<td class="short" style="text-align: center;"><?php echo ($server['Server']['pull'])? 'Yes' : 'No'; ?>&nbsp;</td>
 		<td><?php echo h($server['Server']['url']); ?>&nbsp;</td>
 		<td><?php echo h($server['Server']['organization']); ?>&nbsp;</td>
-		<td class="short"><?php echo h($server['Server']['cert_file']); ?>&nbsp;</td>
-		<td class="short"><?php echo ($server['Server']['self_signed'] ? 'Yes' : 'No'); ?>&nbsp;</td>
+		<td class="short"><?php if(!empty($server['Server']['cert_file'])) echo h($server['Server']['cert_file']); ?>&nbsp;</td>
+		<td class="short"><?php echo (!empty($server['Server']['self_signed']) ? 'Yes' : 'No'); ?>&nbsp;</td>
 		<td class="short"><?php echo h($server['Server']['org']); ?>&nbsp;</td>
 		<td class="short"><?php echo $server['Server']['lastpulledid']; ?></td>
 		<td class="short"><?php echo $server['Server']['lastpushedid']; ?></td>
@@ -78,6 +78,6 @@ endforeach; ?>
     </div>
 
 </div>
-<?php 
+<?php
 	echo $this->element('side_menu', array('menuList' => 'sync', 'menuItem' => 'index'));
 ?>

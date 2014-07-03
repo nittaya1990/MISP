@@ -113,17 +113,13 @@
 									<li><a href="/jobs/index">Jobs</a></li>
 									<li class="divider"></li>
 									<li><a href="/tasks">Scheduled Tasks</a></li>
-								<?php endif; ?>						
+								<?php endif; ?>
                             <li class="divider"></li>
                             <li><a href="/admin/sharing_groups/index">List Sharing Groups</a></li>
                             <li><a href="/admin/sharing_groups/add">Add Sharing Groups</a></li>
                             <li class="divider"></li>
                             <li><a href="/admin/organisations/index">List Organisations</a></li>
                             <li><a href="/admin/organisations/add">Add Organisation</a></li>
-							<li class="divider"></li>
-							<li><a href="/admin/users/email">Contact Users</a></li>
-							<li class="divider"></li>
-							<li><a href="/pages/display/administration">Administrative tools</a></li>
 							<?php endif; ?>
 						</ul>
 					</li>
@@ -157,12 +153,12 @@
 				<ul class="nav">
 					<li>
 						<a href ="/events/proposalEventIndex" <?php if ($proposalCount > 0) echo 'style="font-weight:bold;"'; ?>>
-							<?php 
+							<?php
 								$proposalPluralOrZero = 's';
 								if ($proposalCount == 1) $proposalPluralOrZero = '';
 								$proposalEventPluralOrZero = 's';
 								if ($proposalEventCount == 1) $proposalEventPluralOrZero = '';
-								echo $proposalCount . ' proposal' . $proposalPluralOrZero . ' in ' . $proposalEventCount . ' event' . $proposalEventPluralOrZero; 
+								echo $proposalCount . ' proposal' . $proposalPluralOrZero . ' in ' . $proposalEventCount . ' event' . $proposalEventPluralOrZero;
 							?>
 						</a>
 					</li>
@@ -197,7 +193,7 @@ function resizeLogo() {
 		}
 		if ($(window).width() > 1399) {
 			document.getElementById('fullLogo').style.display='block';
-			document.getElementById('smallLogo').style.display='none';	
+			document.getElementById('smallLogo').style.display='none';
 		}
 	}
 }
