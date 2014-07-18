@@ -21,6 +21,9 @@
         ?>
         </ul>
     </div>
+    <div class="progress progress-striped active hide">
+        <div class="bar" style="width: 100%;"></div>
+    </div>
 	<?php
 	// Let's output a small label of each filter
 	$count = 0;
@@ -363,6 +366,5 @@ function toggleField(field) {
 	$(field).toggle();
 	$(field +" input").focus();
 }
-
-
 </script>
+<?php echo $this->Js->writeBuffer();

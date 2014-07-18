@@ -284,7 +284,7 @@ class EventsController extends AppController {
 		$this->set('eventDescriptions', $this->Event->fieldDescriptions);
 		$this->set('attrDescriptions', $this->Attribute->fieldDescriptions);
 		$this->set('event', $result);
-		
+
 		if (!$this->_isRest()) {
 			// modify event for attribute pagination
 			$eventArray = array();
@@ -296,7 +296,7 @@ class EventsController extends AppController {
 						$attribute['ShadowAttribute'] = null;
 						$attribute['objectType'] = 0;
 						$attribute['hasChildren'] = 0;
-						$eventArray[] = $attribute; 
+						$eventArray[] = $attribute;
 						$current = count($eventArray)-1;
 						foreach ($shadowAttributeTemp as $k => $shadowAttribute) {
 							$shadowAttribute['objectType'] = 1;
@@ -318,7 +318,7 @@ class EventsController extends AppController {
 				$this->set('eventArray', array_splice($eventArray, (($page-1)*50), 50));
 			}
 		}
-		
+
 		if(isset($result['ShadowAttribute'])) {
 			$this->set('remaining', $result['ShadowAttribute']);
 		}
@@ -354,13 +354,13 @@ class EventsController extends AppController {
 			$this->set('currentEvent', $id);
 
 			$this->set('allPivots', $this->Session->read('pivot_thread'));
-			
+
 			// set the types + categories for the attribute add/edit ajax overlays
 			$categories = $this->Attribute->validate['category']['rule'][1];
 			array_pop($categories);
 			$categories = $this->_arrayToValuesIndexArray($categories);
 			$this->set('categories', compact('categories'));
-			
+
 			$types = array_keys($this->Attribute->typeDefinitions);
 			$types = $this->_arrayToValuesIndexArray($types);
 			$this->set('types', $types);
@@ -373,7 +373,7 @@ class EventsController extends AppController {
 			}
 			$this->set('typeCategory', $typeCategory);
 			$this->request->data['Attribute']['event_id'] = $id;
-			
+
 			// Show the discussion
 			$this->loadModel('Thread');
 			$params = array('conditions' => array('event_id' => $id),
@@ -456,7 +456,7 @@ class EventsController extends AppController {
 		}
 		$this->set('currentEvent', $id);
 	}
-	
+
 
 	private function __startPivoting($id, $info, $date){
 		$this->Session->write('pivot_thread', null);
@@ -1322,7 +1322,7 @@ class EventsController extends AppController {
 		if ($tags === 'null') $tags = null;
 		if ($eventid === 'null' || $eventid ==='false') $eventid=null;
 		if ($withAttachment === 'null' || $withAttachment ==='false') $withAttachment = false;
-		
+
 		// request handler for POSTed queries. If the request is a post, the parameters (apart from the key) will be ignored and replaced by the terms defined in the posted xml object.
 		// The correct format for a posted xml is a "request" root element, as shown by the examples below:
 		// For XML: <request><value>7.7.7.7&amp;&amp;1.1.1.1</value><type>ip-src</type></request>
@@ -1338,7 +1338,7 @@ class EventsController extends AppController {
 				else ${$p} = null;
 			}
 		}
-		
+
 		if ($key != 'download') {
 			// check if the key is valid -> search for users based on key
 			$user = $this->checkAuthUser($key);
@@ -1431,7 +1431,7 @@ class EventsController extends AppController {
 			}
 			$user = $this->checkAuthUser($this->Auth->user('authkey'));
 		}
-		
+
 		// display the full snort rulebase
 		$this->loadModel('Attribute');
 		$rules = $this->Attribute->nids($user['User']['siteAdmin'], $user['User']['org'], $format, $user['User']['nids_sid'], $id, $continue, $tags);
@@ -1456,7 +1456,7 @@ class EventsController extends AppController {
 				throw new UnauthorizedException('You have to be logged in to do that.');
 			}
 			$user = $this->checkAuthUser($this->Auth->user('authkey'));
-		}	
+		}
 		$this->loadModel('Attribute');
 
 		$rules = $this->Attribute->hids($user['User']['siteAdmin'], $user['User']['org'], $type, $tags);
@@ -1960,7 +1960,7 @@ class EventsController extends AppController {
 			throw new UnauthorizedException('This authentication key is not authorized to be used for exports. Contact your administrator.');
 		}
 		$value = str_replace('|', '/', $value);
-		
+
 		// request handler for POSTed queries. If the request is a post, the parameters (apart from the key) will be ignored and replaced by the terms defined in the posted json or xml object.
 		// The correct format for both is a "request" root element, as shown by the examples below:
 		// For Json: {"request":{"value": "7.7.7.7&&1.1.1.1","type":"ip-src"}}
@@ -2253,7 +2253,7 @@ class EventsController extends AppController {
 		$this->Session->setFlash('Events updated, '. $updated . ' record(s) altered.');
 		$this->redirect(array('controller' => 'pages', 'action' => 'display', 'administration'));
 	}
-	
+
 	public function addTag($id = null) {
 		if (!$this->request->is('post')) {
 			throw new MethodNotAllowedException('You don\'t have permission to do that.');

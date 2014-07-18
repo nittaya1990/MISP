@@ -26,6 +26,9 @@ if ($isSearch == 1) {
         ?>
         </ul>
     </div>
+    <div class="progress progress-striped active hide">
+        <div class="bar" style="width: 100%;"></div>
+    </div>
 	<table class="table table-striped table-hover table-condensed">
 	<tr>
 			<th><?php echo $this->Paginator->sort('event_id');?></th>
@@ -145,7 +148,7 @@ if ($isSearch == 1){
 	$class = 'listAttributes';
 }
 ?>
-<?php 
+<?php
 	echo $this->element('side_menu', array('menuList' => 'event-collection', 'menuItem' => $class));
 ?>
 <script type="text/javascript">
@@ -159,3 +162,4 @@ $(document).ready(function () {
 
 });
 </script>
+<?php echo $this->Js->writeBuffer();

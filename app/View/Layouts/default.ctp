@@ -42,19 +42,23 @@
 					<div class="container-fluid debugOn" style="padding-top:10px;width:98%;">
 				<?php
 			}
-			echo $this->Session->flash('auth');
-			echo $this->Session->flash('error');
-    		echo $this->Session->flash('gpg');
-			echo $this->Session->flash();
-			echo $this->Session->flash('email'); ?>
-		</div>
-		<div
-			<?php
-				if (Configure::read('debug') == 0) echo 'class="topGap"';
 			?>
-		>	
-			<?php echo $this->fetch('content'); ?>
+
+						<?php
+						echo $this->Session->flash('auth');
+						echo $this->Session->flash('error');
+						echo $this->Session->flash('gpg');
+						echo $this->Session->flash();
+						echo $this->Session->flash('email'); ?>
+
 		</div>
+
+                <div class="row-fluid">
+					<div class="span12 <?php if (Configure::read('debug') == 0) echo 'class="topGap"';?>">
+						<?php echo $this->fetch('content'); ?>
+					</div>
+				</div>
+
 	</div>
 	<?php
 	echo $this->element('footer');
@@ -85,7 +89,7 @@
 			$('.actions').css('left',-$(window).scrollLeft());
 		});
 	</script>
-	<?php 
+	<?php
 		endif;
 	?>
 </body>
