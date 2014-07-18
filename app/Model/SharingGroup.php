@@ -13,11 +13,12 @@ class SharingGroup extends AppModel {
 			),
 			'notempty' => array(
 				'rule' => array('notempty'),
-				//'message' => 'Your custom message here',
-				//'allowEmpty' => false,
-				//'required' => false,
-				//'last' => false, // Stop validation after this rule
-				//'on' => 'create', // Limit validation to 'create' or 'update' operations
+			),
+		),
+		'uuid' => array(
+			'uuid' => array(
+				'rule' => array('uuid'),
+				'message' => 'Please provide a valid UUID'
 			),
 		)
 	);
@@ -30,4 +31,14 @@ class SharingGroup extends AppModel {
 			'associationForeignKey' => 'organisation_id',
 		)
 	);
+
+	public function beforeValidate($options = array()) {
+		parent::beforeValidate();
+
+		if (empty($this->data['SharingGroup']['uuid'])) {
+			$this->data['SharingGroup']['uuid'] = String::uuid();
+		}
+
+		return true;
+	}
 }

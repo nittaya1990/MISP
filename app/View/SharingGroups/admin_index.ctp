@@ -4,6 +4,7 @@
 	<tr>
 			<th><?php echo $this->Paginator->sort('id'); ?></th>
 			<th><?php echo $this->Paginator->sort('name'); ?></th>
+            <th><?php echo $this->Paginator->sort('uuid'); ?></th>
 			<th><?php echo $this->Paginator->sort('description'); ?></th>
 			<th class="actions"><?php echo __('Actions'); ?></th>
 	</tr>
@@ -13,10 +14,13 @@
 		<td><b><?php echo h($sharingGroup['SharingGroup']['name']); ?></b>&nbsp;<br>
             <?php echo implode(', ', Set::extract('/Organisation/name', $sharingGroup));?>
         </td>
+        <td><?php echo h($sharingGroup['SharingGroup']['uuid']); ?>&nbsp;</td>
 		<td><?php echo h($sharingGroup['SharingGroup']['description']); ?>&nbsp;</td>
-		<td class="actions">
-			<?php echo $this->Html->link(__('Edit'), array('action' => 'edit', $sharingGroup['SharingGroup']['id'], 'admin' => true), array('class' => 'btn')); ?>
-			<?php echo $this->Form->postLink(__('Delete'), array('action' => 'delete', 'admin' => true, $sharingGroup['SharingGroup']['id']), array('class' => 'btn'), __('Are you sure you want to delete # %s?', $sharingGroup['SharingGroup']['id'])); ?>
+		<td class="short action-links">
+			<?php
+			echo $this->Html->link('', array('admin' => true, 'action' => 'edit', $sharingGroup['SharingGroup']['id'],), array('class' => 'icon-edit', 'title' => 'Edit'));
+			echo $this->Form->postLink('', array('admin' => true, 'action' => 'delete', $sharingGroup['SharingGroup']['id']), array('class' => 'icon-trash', 'title' => 'Delete'), __('Are you sure you want to delete # %s?', $sharingGroup['SharingGroup']['id']));
+			?>
 		</td>
 	</tr>
 <?php endforeach; ?>
@@ -38,11 +42,4 @@
 	</div>
 </div>
 
-<div class="actions">
-	<h3><?php echo __('Actions'); ?></h3>
-	<ul>
-		<li><?php echo $this->Html->link(__('New Sharing Group'), array('action' => 'add', 'admin' => true)); ?></li>
-		<li><?php echo $this->Html->link(__('List Events'), array('controller' => 'events', 'action' => 'index')); ?> </li>
-		<li><?php echo $this->Html->link(__('New Event'), array('controller' => 'events', 'action' => 'add')); ?> </li>
-	</ul>
-</div>
+<?php echo $this->element('side_menu', array('menuList' => 'admin', 'menuItem' => 'indexSharingGroup'));?>

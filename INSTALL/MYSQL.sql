@@ -363,6 +363,7 @@ CREATE TABLE IF NOT EXISTS `whitelist` (
 CREATE TABLE IF NOT EXISTS `sharing_groups` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
+  `uuid` varchar(40) NOT NULL,
   `category` varchar(255) DEFAULT NULL,
   `description` text,
   KEY `id` (`id`)
