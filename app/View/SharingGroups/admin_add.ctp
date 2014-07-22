@@ -5,6 +5,7 @@
 	<?php
 		echo $this->Form->input('name');
         echo $this->Form->input('uuid');
+        echo $this->Form->input('sharable');
 		echo $this->Form->input('description', array('class' => 'input-xxlarge', 'div' => 'clear'));
 	?>
 	</fieldset>
