@@ -22,8 +22,8 @@ class SharingObject extends AppModel {
 		),
 		'Organisation' => array(
 			'className' => 'Organisation',
-			'foreignKey' => 'foreign_key',
-			'conditions' => array('SharingObject.object_type' => 'organisation'),
+			'foreignKey' => 'organisation_uuid',
+			'conditions' => '',
 			'fields' => '',
 			'order' => ''
 		),

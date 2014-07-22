@@ -177,27 +177,27 @@ class EventsController extends AppController {
 				}
 			}
 		}
-        /*if (!$this->_IsSiteAdmin() && Configure::read('MISP.enable_sharing_groups')) {
-            $org = $this->Event->User->Organisation->read(null, $this->Auth->user('organisation_id'));
-            $this->paginate['group'] = 'Event.id';
-            $this->paginate['joins'] = array(
-                array(
-                    'table' => 'sharing_object',
-                    'alias' => 'SharingObject',
-                    'type' => 'inner',
-                    'conditions'=> array('SharingObject.foreign_key = Event.id', 'SharingObject.object_type = "event"')
-                ),
-                array(
-                    'table' => 'sharing_groups',
-                    'alias' => 'SharingGroup',
-                    'type' => 'inner',
-                    'conditions'=> array(
-                        'SharingGroup.id = SharingObject.sharing_group_id',
-                        'SharingGroup.id' => Set::extract('/SharingGroup/id', $org)
-                        )
-                )
-            );
-        }*/
+		/*if (!$this->_IsSiteAdmin() && Configure::read('MISP.enable_sharing_groups')) {
+			$org = $this->Event->User->Organisation->read(null, $this->Auth->user('organisation_id'));
+			$this->paginate['group'] = 'Event.id';
+			$this->paginate['joins'] = array(
+				array(
+					'table' => 'sharing_object',
+					'alias' => 'SharingObject',
+					'type' => 'inner',
+					'conditions'=> array('SharingObject.foreign_key = Event.id', 'SharingObject.object_type = "event"')
+				),
+				array(
+					'table' => 'sharing_groups',
+					'alias' => 'SharingGroup',
+					'type' => 'inner',
+					'conditions'=> array(
+						'SharingGroup.id = SharingObject.sharing_group_id',
+						'SharingGroup.id' => Set::extract('/SharingGroup/id', $org)
+						)
+				)
+			);
+		}*/
 
 
 		$this->paginate['contain'] = array(
@@ -589,7 +589,7 @@ class EventsController extends AppController {
 					$this->Session->setFlash(__('You may only upload GFI Sandbox zip files.'));
 				} else {
 					if ($this->_isRest()) $this->request->data = $this->Event->updateXMLArray($this->request->data, false);
-                    //die(debug($this->request->data));
+					//die(debug($this->request->data));
 					$add = $this->Event->_add($this->request->data, $this->_isRest(), $this->Auth->user(), '');
 					if ($add && !is_numeric($add)) {
 						if ($this->_isRest()) {
@@ -649,10 +649,10 @@ class EventsController extends AppController {
 		$this->set('analysisDescriptions', $this->Event->analysisDescriptions);
 		$this->set('analysisLevels', $this->Event->analysisLevels);
 		$this->set('sharingGroups', $this->Event->SharingGroup->find('list'));
-        $org = $this->Event->User->Organisation->read(null, $this->Auth->user('organisation_id'));
-        $this->set('selectedSharingGroups', Set::extract('/SharingGroup/id', $org));
+		$org = $this->Event->User->Organisation->read(null, $this->Auth->user('organisation_id'));
+		$this->set('selectedSharingGroups', Set::extract('/SharingGroup/id', $org));
 
-        $this->set('servers', $this->Event->Server->find('list'));
+		$this->set('servers', $this->Event->Server->find('list'));
 		$this->set('eventDescriptions', $this->Event->fieldDescriptions);
 	}
 
@@ -849,10 +849,10 @@ class EventsController extends AppController {
 			throw new NotFoundException(__('Invalid event'));
 		}
 
-        if(!$this->_isSiteAdmin() && !$this->_isInMySharingGroup($id)){
-            $this->Session->setFlash(__('This event is not part of your sharing group, you are not authorized to view it.'));
-            $this->redirect(array('controller' => 'events', 'action' => 'index'));
-        }
+		if(!$this->_isSiteAdmin() && !$this->_isInMySharingGroup($id)){
+			$this->Session->setFlash(__('This event is not part of your sharing group, you are not authorized to view it.'));
+			$this->redirect(array('controller' => 'events', 'action' => 'index'));
+		}
 
 		$this->Event->read(null, $id);
 		// check for if private and user not authorised to edit, go away
@@ -999,8 +999,8 @@ class EventsController extends AppController {
 		// tooltip for analysis
 		$this->set('analysisDescriptions', $this->Event->analysisDescriptions);
 		$this->set('analysisLevels', $this->Event->analysisLevels);
-        $this->set('sharingGroups', $this->Event->SharingGroup->find('list'));
-        //$this->set('servers', $this->Event->Server->find('list'));
+		$this->set('sharingGroups', $this->Event->SharingGroup->find('list'));
+		//$this->set('servers', $this->Event->Server->find('list'));
 		$this->set('eventDescriptions', $this->Event->fieldDescriptions);
 
 		$this->set('event', $this->Event->data);
@@ -2096,9 +2096,9 @@ class EventsController extends AppController {
 		if (!$this->Event->exists()) {
 			throw new NotFoundException(__('Invalid event'));
 		}
-        if(!$this->_isInMySharingGroup($eventid)){
-            throw new UnauthorizedException('You do not have the permission to view this event.');
-        }
+		if(!$this->_isInMySharingGroup($eventid)){
+			throw new UnauthorizedException('You do not have the permission to view this event.');
+		}
 		$this->Event->contain('Attribute');
 		$event = $this->Event->read(null, $eventid);
 		foreach ($event['Attribute'] as $k => $attribute) {
