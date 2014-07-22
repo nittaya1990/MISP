@@ -29,6 +29,15 @@ class Organisation extends AppModel{
 		)
 	);
 
+	public $hasAndBelongsToMany = array(
+		'SharingGroup' => array(
+			'className' => 'SharingGroup',
+			'joinTable' => 'organisations_sharing_groups',
+			'foreignKey' => 'organisation_id',
+			'associationForeignKey' => 'sharing_group_id',
+		)
+	);
+
 	public function beforeDelete($cascade = false){
 		$count = $this->User->find('count', array(
 			'conditions' => array('organisation_id' => $this->id)

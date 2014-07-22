@@ -39,6 +39,15 @@ class SharingGroup extends AppModel {
 		)
 	);
 
+	public $hasAndBelongsToMany = array(
+		'Organisation' => array(
+			'className' => 'Organisation',
+			'joinTable' => 'organisations_sharing_groups',
+			'foreignKey' => 'sharing_group_id',
+			'associationForeignKey' => 'organisation_id',
+		)
+	);
+
 	public function beforeValidate($options = array()) {
 		parent::beforeValidate();
 

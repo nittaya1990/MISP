@@ -387,10 +387,25 @@ CREATE TABLE IF NOT EXISTS `organisations` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `organisations_sharing_groups`
+--
+
+CREATE TABLE IF NOT EXISTS `organisations_sharing_groups` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `organisation_id` int(11) NOT NULL,
+  `sharing_group_id` int(11) NOT NULL,
+  `created` datetime DEFAULT NULL,
+  `updated` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `sharing_object`
 --
 
-CREATE TABLE `sharing_object` (
+CREATE TABLE IF NOT EXISTS `sharing_objects` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `sharing_group_id` int(11) NOT NULL,
   `foreign_key` int(11) NOT NULL,
