@@ -372,34 +372,6 @@ CREATE TABLE IF NOT EXISTS `sharing_groups` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `events_sharing_groups`
---
-
-CREATE TABLE IF NOT EXISTS `events_sharing_groups` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `event_id` int(11) NOT NULL,
-  `sharing_group_id` int(11) NOT NULL,
-  `created` datetime DEFAULT NULL,
-  `updated` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `events_servers`
---
-
-CREATE TABLE IF NOT EXISTS `events_servers` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `event_id` int(11) NOT NULL,
-  `server_id` int(11) NOT NULL
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `organisations`
 --
 
@@ -415,17 +387,21 @@ CREATE TABLE IF NOT EXISTS `organisations` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `organisations_sharing_groups`
+-- Table structure for table `sharing_object`
 --
 
-CREATE TABLE IF NOT EXISTS `organisations_sharing_groups` (
+CREATE TABLE `sharing_object` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `organisation_id` int(11) NOT NULL,
   `sharing_group_id` int(11) NOT NULL,
+  `foreign_key` int(11) NOT NULL,
+  `object_type` varchar(10) NOT NULL DEFAULT 'event',
+  `organisation_uuid` int(40) NOT NULL,
+  `sharing_group_uuid` int(40) NOT NULL,
   `created` datetime DEFAULT NULL,
   `updated` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 
 
 -- --------------------------------------------------------

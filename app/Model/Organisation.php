@@ -26,16 +26,6 @@ class Organisation extends AppModel{
 		'User' => array(
 			'className' => 'User',
 			'foreignKey' => 'organisation_id'
-		),
-
-	);
-
-	public $hasAndBelongsToMany = array(
-		'SharingGroup' => array(
-			'className' => 'SharingGroup',
-			'joinTable' => 'organisations_sharing_groups',
-			'foreignKey' => 'organisation_id',
-			'associationForeignKey' => 'sharing_group_id',
 		)
 	);
 

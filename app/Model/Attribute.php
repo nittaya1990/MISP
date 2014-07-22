@@ -43,15 +43,15 @@ class Attribute extends AppModel {
 			'value' => 'IF (Attribute.value2="", Attribute.value1, CONCAT(Attribute.value1, "|", Attribute.value2))',
 			'category_order' => 'IF (Attribute.category="Internal reference", "a",
 			IF (Attribute.category="Targeting data", "b",
- 			IF (Attribute.category="Antivirus detection", "c",
- 			IF (Attribute.category="Payload delivery", "d",
- 			IF (Attribute.category="Payload installation", "e",
- 			IF (Attribute.category="Artifacts dropped", "f",
- 			IF (Attribute.category="Persistence mechanism", "g",
- 			IF (Attribute.category="Network activity", "h",
- 			IF (Attribute.category="Payload type", "i",
- 			IF (Attribute.category="Attribution", "j",
- 			IF (Attribute.category="External analysis", "k", "l")))))))))))'
+			IF (Attribute.category="Antivirus detection", "c",
+			IF (Attribute.category="Payload delivery", "d",
+			IF (Attribute.category="Payload installation", "e",
+			IF (Attribute.category="Artifacts dropped", "f",
+			IF (Attribute.category="Persistence mechanism", "g",
+			IF (Attribute.category="Network activity", "h",
+			IF (Attribute.category="Payload type", "i",
+			IF (Attribute.category="Attribution", "j",
+			IF (Attribute.category="External analysis", "k", "l")))))))))))'
 	); // TODO hardcoded
 
 /**
@@ -127,12 +127,12 @@ class Attribute extends AppModel {
 			'other' => array('desc' => 'Other attribute'),
 			'named pipe' => array('desc' => 'Named pipe, use the format \\.\pipe\<PipeName>'),
 			'mutex' => array('desc' => 'Mutex, use the format \BaseNamedObjects\<Mutex>'),
- 			'target-user' => array('desc' => 'Attack Targets Username(s)'),
- 			'target-email' => array('desc' => 'Attack Targets Email(s)'),
- 			'target-machine' => array('desc' => 'Attack Targets Machine Name(s)'),
- 			'target-org' => array('desc' => 'Attack Targets Department or Orginization(s)'),
- 			'target-location' => array('desc' => 'Attack Targets Physical Location(s)'),
- 			'target-external' => array('desc' => 'External Target Orginizations Affected by this Attack'),
+			'target-user' => array('desc' => 'Attack Targets Username(s)'),
+			'target-email' => array('desc' => 'Attack Targets Email(s)'),
+			'target-machine' => array('desc' => 'Attack Targets Machine Name(s)'),
+			'target-org' => array('desc' => 'Attack Targets Department or Orginization(s)'),
+			'target-location' => array('desc' => 'Attack Targets Physical Location(s)'),
+			'target-external' => array('desc' => 'External Target Orginizations Affected by this Attack'),
 	);
 
 	// definitions of categories
@@ -141,11 +141,11 @@ class Attribute extends AppModel {
 					'desc' => 'Reference used by the publishing party (e.g. ticket number)',
 					'types' => array('link', 'comment', 'text', 'other')
 					),
- 			'Targeting data' => array(
- 					'desc' => 'Internal Attack Targeting and Compromise Information',
- 					'formdesc' => 'Targeting information to include recipient email, infected machines, department, and or locations.<br/>',
- 					'types' => array('target-user', 'target-email', 'target-machine', 'target-org', 'target-location', 'target-external', 'comment')
- 					),
+			'Targeting data' => array(
+					'desc' => 'Internal Attack Targeting and Compromise Information',
+					'formdesc' => 'Targeting information to include recipient email, infected machines, department, and or locations.<br/>',
+					'types' => array('target-user', 'target-email', 'target-machine', 'target-org', 'target-location', 'target-external', 'comment')
+					),
 			'Antivirus detection' => array(
 					'desc' => 'All the info about how the malware is detected by the antivirus products',
 					'formdesc' => 'List of anti-virus vendors detecting the malware or information on detection performance (e.g. 13/43 or 67%). Attachment with list of detection or link to VirusTotal could be placed here as well.',
@@ -330,6 +330,22 @@ class Attribute extends AppModel {
 		)
 	);
 
+	public $hasMany = array(
+		'SharingObject' => array(
+			'className' => 'SharingObject',
+			'foreignKey' => 'foreign_key',
+			'dependent' => true,	// cascade deletes
+			'conditions' => array('SharingObject.object_type = "attribute"'),
+			'fields' => '',
+			'order' => '',
+			'limit' => '',
+			'offset' => '',
+			'exclusive' => '',
+			'finderQuery' => '',
+			'counterQuery' => ''
+		)
+	);
+
 /**
  * beforeSave
  *
@@ -357,7 +373,7 @@ class Attribute extends AppModel {
 			}
 		}
 		// update correlation... (only needed here if there's an update)
- 		$this->__beforeSaveCorrelation($this->data['Attribute']);
+		$this->__beforeSaveCorrelation($this->data['Attribute']);
 		// always return true after a beforeSave()
 		return true;
 	}
@@ -426,12 +442,12 @@ class Attribute extends AppModel {
 		switch($this->data['Attribute']['type']) {
 			case 'http-method':
 				$this->data['Attribute']['value'] = strtoupper($this->data['Attribute']['value']);
-		        break;
-        }
+				break;
+		}
 
 		// set to_ids if it doesn't exist
 		if (empty($this->data['Attribute']['to_ids'])) {
-		    $this->data['Attribute']['to_ids'] = 0;
+			$this->data['Attribute']['to_ids'] = 0;
 		}
 
 		// generate UUID if it doesn't exist
@@ -518,7 +534,7 @@ class Attribute extends AppModel {
 				break;
 			case 'http-method':
 				if (preg_match("#(OPTIONS|GET|HEAD|POST|PUT|DELETE|TRACE|CONNECT|PROPFIND|PROPPATCH|MKCOL|COPY|MOVE|LOCK|UNLOCK|VERSION-CONTROL|REPORT|CHECKOUT|CHECKIN|UNCHECKOUT|MKWORKSPACE|UPDATE|LABEL|MERGE|BASELINE-CONTROL|MKACTIVITY|ORDERPATCH|ACL|PATCH|SEARCH)#", $value)) {
-				    $returnValue = true;
+					$returnValue = true;
 				} else {
 					$returnValue = 'Unknown HTTP method.';
 				}
@@ -688,42 +704,42 @@ class Attribute extends AppModel {
 			case 'other':
 				$returnValue = true;
 				break;
- 			case 'target-user':
- 				// no newline
- 				if (!preg_match("#\n#", $value)) {
- 					$returnValue = true;
- 				}
- 				break;
- 			case 'target-email':
- 				if (preg_match("#^[A-Z0-9._%+-]*@[A-Z0-9.-]+\.[A-Z]{2,4}$#i", $value)) {
- 					$returnValue = true;
- 				} else {
- 					$returnValue = 'Email address has invalid format. Please double check the value or select "other" for a type.';
- 				}
- 				break;
- 			case 'target-machine':
- 				// no newline
- 				if (!preg_match("#\n#", $value)) {
- 					$returnValue = true;
- 				}
- 				break;
- 			case 'target-org':
- 				// no newline
- 				if (!preg_match("#\n#", $value)) {
- 					$returnValue = true;
- 				}
- 				break;
- 			case 'target-location':
- 				// no newline
- 				if (!preg_match("#\n#", $value)) {
- 					$returnValue = true;
- 				}
- 				break;
- 			case 'target-external':
- 				// no newline
- 				if (!preg_match("#\n#", $value)) {
- 					$returnValue = true;
- 				}
+			case 'target-user':
+				// no newline
+				if (!preg_match("#\n#", $value)) {
+					$returnValue = true;
+				}
+				break;
+			case 'target-email':
+				if (preg_match("#^[A-Z0-9._%+-]*@[A-Z0-9.-]+\.[A-Z]{2,4}$#i", $value)) {
+					$returnValue = true;
+				} else {
+					$returnValue = 'Email address has invalid format. Please double check the value or select "other" for a type.';
+				}
+				break;
+			case 'target-machine':
+				// no newline
+				if (!preg_match("#\n#", $value)) {
+					$returnValue = true;
+				}
+				break;
+			case 'target-org':
+				// no newline
+				if (!preg_match("#\n#", $value)) {
+					$returnValue = true;
+				}
+				break;
+			case 'target-location':
+				// no newline
+				if (!preg_match("#\n#", $value)) {
+					$returnValue = true;
+				}
+				break;
+			case 'target-external':
+				// no newline
+				if (!preg_match("#\n#", $value)) {
+					$returnValue = true;
+				}
 		}
 		return $returnValue;
 	}
@@ -881,7 +897,7 @@ class Attribute extends AppModel {
 		// create directory structure
 		// ???
 		$rootDir = APP . "files" . DS . $eventId;
-		
+
 		$dir = new Folder($rootDir, true);
 		// move the file to the correct location
 		$destpath = $rootDir . DS . $this->getId(); // id of the new attribute in the database
@@ -938,48 +954,48 @@ class Attribute extends AppModel {
 			$value_names = array ('value1', 'value2');
 			// do the correlation for value1 and value2, this needs to be done separately
 			foreach ($value_names as $value_name) {
-			    if (empty($a[$value_name])) continue;  // do not correlate if attribute is empty
-			    $params = array(
-			            'conditions' => array(
-			            	'OR' => array(
-			                    'Attribute.value1' => $a[$value_name],
-			                    'Attribute.value2' => $a[$value_name]
-			            	),
-			            	'AND' => array(
-			            		'Attribute.type !=' => 'vulnerability',
-			            		'Attribute.type !=' => 'comment',
+				if (empty($a[$value_name])) continue;  // do not correlate if attribute is empty
+				$params = array(
+						'conditions' => array(
+							'OR' => array(
+								'Attribute.value1' => $a[$value_name],
+								'Attribute.value2' => $a[$value_name]
+							),
+							'AND' => array(
+								'Attribute.type !=' => 'vulnerability',
+								'Attribute.type !=' => 'comment',
 						)),
-			            'recursive' => 0,
-			            //'fields' => '', // we want to have the Attribute AND Event, so do not filter here
-			    );
-			    // search for the related attributes for that "value(1|2)"
-			    $attributes = $this->find('all', $params);
-			    // build the correlations, each attribute should have a relation in both directions
-			    // this is why we have a double loop.
-			    // The result is that for each Attribute pair we want: A1-A2, A2-A1 and so on,
-			    // In total that's N * (N-1) rows (minus the ones from the same event) (with N the number of related attributes)
-			    $attributes_right = $attributes;
-			    foreach ($attributes as $attribute) {
-			        foreach ($attributes_right as $attribute_right) {
-			            if ($attribute['Attribute']['event_id'] == $attribute_right['Attribute']['event_id']) {
-			                // do not build a relation between the same attributes
-			                // or attributes from the same event
-			                continue;
-			            }
-			            $is_private = ($attribute_right['Event']['distribution'] == 0) || ($attribute_right['Attribute']['distribution'] == 0);
-			            $correlations[] = array(
-			                    'value' => $a[$value_name],
-			                    '1_event_id' => $attribute['Attribute']['event_id'],
-			                    '1_attribute_id' => $attribute['Attribute']['id'],
-			                    'event_id' => $attribute_right['Attribute']['event_id'],
-			                    'attribute_id' => $attribute_right['Attribute']['id'],
-			                    'org' => $attribute_right['Event']['org'],
-			                    'private' => $is_private,
-			                    'date' => $attribute_right['Event']['date'],
-			            		'info' => $attribute_right['Event']['info'],
-			            );
-			        }
-			    }
+						'recursive' => 0,
+						//'fields' => '', // we want to have the Attribute AND Event, so do not filter here
+				);
+				// search for the related attributes for that "value(1|2)"
+				$attributes = $this->find('all', $params);
+				// build the correlations, each attribute should have a relation in both directions
+				// this is why we have a double loop.
+				// The result is that for each Attribute pair we want: A1-A2, A2-A1 and so on,
+				// In total that's N * (N-1) rows (minus the ones from the same event) (with N the number of related attributes)
+				$attributes_right = $attributes;
+				foreach ($attributes as $attribute) {
+					foreach ($attributes_right as $attribute_right) {
+						if ($attribute['Attribute']['event_id'] == $attribute_right['Attribute']['event_id']) {
+							// do not build a relation between the same attributes
+							// or attributes from the same event
+							continue;
+						}
+						$is_private = ($attribute_right['Event']['distribution'] == 0) || ($attribute_right['Attribute']['distribution'] == 0);
+						$correlations[] = array(
+								'value' => $a[$value_name],
+								'1_event_id' => $attribute['Attribute']['event_id'],
+								'1_attribute_id' => $attribute['Attribute']['id'],
+								'event_id' => $attribute_right['Attribute']['event_id'],
+								'attribute_id' => $attribute_right['Attribute']['id'],
+								'org' => $attribute_right['Event']['org'],
+								'private' => $is_private,
+								'date' => $attribute_right['Event']['date'],
+								'info' => $attribute_right['Event']['info'],
+						);
+					}
+				}
 			}
 			// save the new correlations to the database in a single shot
 			$this->Correlation->saveMany($correlations);
@@ -1132,7 +1148,7 @@ class Attribute extends AppModel {
 		}
 		return $fails;
 	}
-	
+
 	public function hids($isSiteAdmin, $org ,$type, $tags = '') {
 		// check if it's a valid type
 		if ($type != 'md5' && $type != 'sha1') {
@@ -1147,7 +1163,7 @@ class Attribute extends AppModel {
 			array_push($temp, array('(SELECT events.org FROM events WHERE events.id = Attribute.event_id) LIKE' => $org));
 			$conditions['OR'] = $temp;
 		}
-		
+
 		// If we sent any tags along, load the associated tag names for each attribute
 		if ($tags !== '') {
 			$tag = ClassRegistry::init('Tag');
@@ -1164,7 +1180,7 @@ class Attribute extends AppModel {
 			}
 			$conditions['AND'][] = $temp;
 		}
-		
+
 		$params = array(
 				'conditions' => $conditions, //array of conditions
 				'recursive' => 0, //int
@@ -1176,7 +1192,7 @@ class Attribute extends AppModel {
 		$rules = $export->export($items, strtoupper($type));
 		return $rules;
 	}
-	
+
 	public function nids($isSiteAdmin, $org, $format, $sid, $id = null, $continue = false, $tags = '') {
 		//restricting to non-private or same org if the user is not a site-admin.
 		$conditions['AND'] = array('Attribute.to_ids' => 1, "Event.published" => 1);
@@ -1187,7 +1203,7 @@ class Attribute extends AppModel {
 			array_push($temp, array('(SELECT events.org FROM events WHERE events.id = Attribute.event_id) LIKE' => $org));
 			$conditions['OR'] = $temp;
 		}
-		
+
 		if ($id) {
 			array_push($conditions['AND'], array('Event.id' => $id));
 		}
@@ -1207,7 +1223,7 @@ class Attribute extends AppModel {
 			}
 			$conditions['AND'][] = $temp;
 		}
-		
+
 		$params = array(
 				'conditions' => $conditions, //array of conditions
 				'recursive' => 0, //int
@@ -1215,7 +1231,7 @@ class Attribute extends AppModel {
 		);
 		unset($this->virtualFields['category_order']);  // not needed for IDS export and speeds things up
 		$items = $this->find('all', $params);
-		
+
 		// export depending of the requested type
 		switch ($format) {
 			case 'suricata':
@@ -1232,101 +1248,101 @@ class Attribute extends AppModel {
 	}
 
 	 public function text($org, $isSiteAdmin, $type, $tags = '') {
-	 	//restricting to non-private or same org if the user is not a site-admin.
-	 	$conditions['AND'] = array('Attribute.type' => $type, 'Attribute.to_ids =' => 1, 'Event.published =' => 1);
-	 	if (!$isSiteAdmin) {
-	 		$temp = array();
-	 		$distribution = array();
-	 		array_push($temp, array('Attribute.distribution >' => 0));
-	 		array_push($temp, array('(SELECT events.org FROM events WHERE events.id = Attribute.event_id) LIKE' => $org));
-	 		$conditions['OR'] = $temp;
-	 	}
-	 	
-	 	// If we sent any tags along, load the associated tag names for each attribute
-	 	if ($tags !== '') {
-	 		$tag = ClassRegistry::init('Tag');
-	 		$args = $this->dissectArgs($tags);
-	 		$tagArray = $tag->fetchEventTagIds($args[0], $args[1]);
-	 		$temp = array();
-	 		foreach ($tagArray[0] as $accepted) {
-	 			$temp['OR'][] = array('Event.id' => $accepted);
-	 		}
-	 		$conditions['AND'][] = $temp;
-	 		$temp = array();
-	 		foreach ($tagArray[1] as $rejected) {
-	 			$temp['AND'][] = array('Event.id !=' => $rejected);
-	 		}
-	 		$conditions['AND'][] = $temp;
-	 	}
-	 	
-	 	$params = array(
-	 			'conditions' => $conditions, //array of conditions
-	 			//'recursive' => 2, //int
-	 			//'fields' => array('Attribute.value'), //array of field names
-	 			'order' => array('Attribute.value'), //string or array defining order
-	 			'group' => array('Attribute.value'), //fields to GROUP BY
-	 			'contain' => array('Event' => array(
-	 					'fields' => array('Event.id', 'Event.published'),
-	 	
-	 			)));
-	 	
-	 	$attributes = $this->find('all', $params);
-	 	return $attributes;
+		//restricting to non-private or same org if the user is not a site-admin.
+		$conditions['AND'] = array('Attribute.type' => $type, 'Attribute.to_ids =' => 1, 'Event.published =' => 1);
+		if (!$isSiteAdmin) {
+			$temp = array();
+			$distribution = array();
+			array_push($temp, array('Attribute.distribution >' => 0));
+			array_push($temp, array('(SELECT events.org FROM events WHERE events.id = Attribute.event_id) LIKE' => $org));
+			$conditions['OR'] = $temp;
+		}
+
+		// If we sent any tags along, load the associated tag names for each attribute
+		if ($tags !== '') {
+			$tag = ClassRegistry::init('Tag');
+			$args = $this->dissectArgs($tags);
+			$tagArray = $tag->fetchEventTagIds($args[0], $args[1]);
+			$temp = array();
+			foreach ($tagArray[0] as $accepted) {
+				$temp['OR'][] = array('Event.id' => $accepted);
+			}
+			$conditions['AND'][] = $temp;
+			$temp = array();
+			foreach ($tagArray[1] as $rejected) {
+				$temp['AND'][] = array('Event.id !=' => $rejected);
+			}
+			$conditions['AND'][] = $temp;
+		}
+
+		$params = array(
+				'conditions' => $conditions, //array of conditions
+				//'recursive' => 2, //int
+				//'fields' => array('Attribute.value'), //array of field names
+				'order' => array('Attribute.value'), //string or array defining order
+				'group' => array('Attribute.value'), //fields to GROUP BY
+				'contain' => array('Event' => array(
+						'fields' => array('Event.id', 'Event.published'),
+
+				)));
+
+		$attributes = $this->find('all', $params);
+		return $attributes;
 	 }
-	 
+
 	 public function generateCorrelation() {
-	 	$this->Correlation = ClassRegistry::init('Correlation');
-	 	$this->Correlation->deleteAll(array('id !=' => ''), false);
-	 	$fields = array('Attribute.id', 'Attribute.event_id', 'Attribute.distribution', 'Attribute.type', 'Attribute.category', 'Attribute.value1', 'Attribute.value2');
-	 	// get all attributes..
-	 	$attributes = $this->find('all', array('recursive' => -1, 'fields' => $fields));
-	 	// for all attributes..
-	 	foreach ($attributes as $k => $attribute) {
-	 		$this->__afterSaveCorrelation($attribute['Attribute']);
-	 	}
-	 	return $k;
+		$this->Correlation = ClassRegistry::init('Correlation');
+		$this->Correlation->deleteAll(array('id !=' => ''), false);
+		$fields = array('Attribute.id', 'Attribute.event_id', 'Attribute.distribution', 'Attribute.type', 'Attribute.category', 'Attribute.value1', 'Attribute.value2');
+		// get all attributes..
+		$attributes = $this->find('all', array('recursive' => -1, 'fields' => $fields));
+		// for all attributes..
+		foreach ($attributes as $k => $attribute) {
+			$this->__afterSaveCorrelation($attribute['Attribute']);
+		}
+		return $k;
 	 }
-	 
+
 	 public function reportValidationIssuesAttributes() {
-	 	// for efficiency reasons remove the unique requirement
-	 	$this->validator()->remove('value', 'unique');
-	 
-	 	// get all attributes..
-	 	$attributes = $this->find('all', array('recursive' => -1));
-	 	// for all attributes..
-	 	$result = array();
-	 	$i = 0;
-	 	foreach ($attributes as $attribute) {
-	 		$this->set($attribute);
-	 		if ($this->validates()) {
-	 			// validates
-	 		} else {
-	 			$errors = $this->validationErrors;
-	 			$result[$i]['id'] = $attribute['Attribute']['id'];
-	 			// print_r
-	 			$result[$i]['error'] = $errors['value'][0];
-	 			$result[$i]['details'] = 'Event ID: [' . $attribute['Attribute']['event_id'] . "] - Category: [" . $attribute['Attribute']['category'] . "] - Type: [" . $attribute['Attribute']['type'] . "] - Value: [" . $attribute['Attribute']['value'] . ']';
-	 			$i++;
-	 		}
-	 	}
-	 	return $result;
+		// for efficiency reasons remove the unique requirement
+		$this->validator()->remove('value', 'unique');
+
+		// get all attributes..
+		$attributes = $this->find('all', array('recursive' => -1));
+		// for all attributes..
+		$result = array();
+		$i = 0;
+		foreach ($attributes as $attribute) {
+			$this->set($attribute);
+			if ($this->validates()) {
+				// validates
+			} else {
+				$errors = $this->validationErrors;
+				$result[$i]['id'] = $attribute['Attribute']['id'];
+				// print_r
+				$result[$i]['error'] = $errors['value'][0];
+				$result[$i]['details'] = 'Event ID: [' . $attribute['Attribute']['event_id'] . "] - Category: [" . $attribute['Attribute']['category'] . "] - Type: [" . $attribute['Attribute']['type'] . "] - Value: [" . $attribute['Attribute']['value'] . ']';
+				$i++;
+			}
+		}
+		return $result;
 	 }
-	 
+
 	 // This method takes a string from an argument with several elements (separated by '&&' and negated by '!') and returns 2 arrays
 	 // array 1 will have all of the non negated terms and array 2 all the negated terms
 	 public function dissectArgs($args) {
-	 	$argArray = explode('&&', $args);
-	 	$accept = $reject = $result = array();
-	 	$reject = array();
-	 	foreach ($argArray as $arg) {
-	 		if (substr($arg, 0, 1) == '!') {
-	 			$reject[] = substr($arg, 1);
-	 		} else {
-	 			$accept[] = $arg;
-	 		}
-	 	}
-	 	$result[0] = $accept;
-	 	$result[1] = $reject;
-	 	return $result;
+		$argArray = explode('&&', $args);
+		$accept = $reject = $result = array();
+		$reject = array();
+		foreach ($argArray as $arg) {
+			if (substr($arg, 0, 1) == '!') {
+				$reject[] = substr($arg, 1);
+			} else {
+				$accept[] = $arg;
+			}
+		}
+		$result[0] = $accept;
+		$result[1] = $reject;
+		return $result;
 	 }
 }

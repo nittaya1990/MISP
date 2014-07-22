@@ -41,9 +41,9 @@ class AppController extends Controller {
 	public $defaultModel = '';
 
 	public $debugMode = false;
-	
+
 	// Used for _isAutomation(), a check that returns true if the controller & action combo matches an action that is a non-xml and non-json automation method
-	// This is used to allow authentication via headers for methods not covered by _isRest() - as that only checks for JSON and XML formats 
+	// This is used to allow authentication via headers for methods not covered by _isRest() - as that only checks for JSON and XML formats
 	public $automationArray = array(
 		'events' => array('csv', 'nids', 'hids'),
 		'attributes' => array('text', 'downloadAttachment'),
@@ -74,14 +74,14 @@ class AppController extends Controller {
 				//'Actions' => array('actionPath' => 'controllers')) // TODO ACL, 4: tell actionPath
 				),
 	);
-	
+
 	public $mispVersion = '2.2.0';
-	
+
 	public function beforeFilter() {
 		// send users away that are using ancient versions of IE
 		// Make sure to update this if IE 20 comes out :)
 		if(preg_match('/(?i)msie [2-8]/',$_SERVER['HTTP_USER_AGENT']) && !strpos($_SERVER['HTTP_USER_AGENT'], 'Opera')) throw new MethodNotAllowedException('You are using an unsecure and outdated version of IE, please download Google Chrome, Mozilla Firefox or update to a newer version of IE. If you are running IE9 or newer and still receive this error message, please make sure that you are not running your browser in compatibility mode. If you still have issues accessing the site, get in touch with your administration team at ' . Configure::read('MISP.contact'));
-		
+
 		// REST authentication
 		if ($this->_isRest() || $this->_isAutomation()) {
 			// disable CSRF for REST access
@@ -173,7 +173,7 @@ class AppController extends Controller {
 	protected function _isRest() {
 		return (isset($this->RequestHandler) && ($this->RequestHandler->isXml() || $this->_isJson()));
 	}
-	
+
 	protected function _isAutomation() {
 		foreach ($this->automationArray as $controllerName => $controllerActions) {
 			if ($this->params['controller'] == $controllerName && in_array($this->params['action'], $controllerActions)) return true;
@@ -187,7 +187,7 @@ class AppController extends Controller {
 		$shadowAttributes = $this->ShadowAttribute->find('all', array(
 				'recursive' => -1,
 				'fields' => array('event_id', 'event_org'),
-				'conditions' => array( 
+				'conditions' => array(
 					'ShadowAttribute.event_org' => $this->Auth->user('org')
 		)));
 		$results = array();
@@ -199,7 +199,7 @@ class AppController extends Controller {
 		$results[1] = count($eventIds);
 		return $results;
 	}
-	
+
 /**
  * Convert an array to the same array but with the values also as index instead of an interface_exists
  */

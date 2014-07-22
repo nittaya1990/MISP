@@ -23,12 +23,19 @@ class SharingGroup extends AppModel {
 		)
 	);
 
-	public $hasAndBelongsToMany = array(
-		'Organisation' => array(
-			'className' => 'Organisation',
-			'joinTable' => 'organisations_sharing_groups',
+	public $hasMany = array(
+		'SharingObject' => array(
+			'className' => 'SharingObject',
 			'foreignKey' => 'sharing_group_id',
-			'associationForeignKey' => 'organisation_id',
+			'dependent' => true,	// cascade deletes
+			'conditions' => '',
+			'fields' => '',
+			'order' => '',
+			'limit' => '',
+			'offset' => '',
+			'exclusive' => '',
+			'finderQuery' => '',
+			'counterQuery' => ''
 		)
 	);
 

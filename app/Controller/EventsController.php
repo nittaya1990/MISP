@@ -177,27 +177,27 @@ class EventsController extends AppController {
 				}
 			}
 		}
-        if (!$this->_IsSiteAdmin()) {
+        /*if (!$this->_IsSiteAdmin() && Configure::read('MISP.enable_sharing_groups')) {
             $org = $this->Event->User->Organisation->read(null, $this->Auth->user('organisation_id'));
             $this->paginate['group'] = 'Event.id';
             $this->paginate['joins'] = array(
                 array(
-                    'table' => 'events_sharing_groups',
-                    'alias' => 'EventsSharingGroup',
+                    'table' => 'sharing_object',
+                    'alias' => 'SharingObject',
                     'type' => 'inner',
-                    'conditions'=> array('EventsSharingGroup.event_id = Event.id')
+                    'conditions'=> array('SharingObject.foreign_key = Event.id', 'SharingObject.object_type = "event"')
                 ),
                 array(
                     'table' => 'sharing_groups',
                     'alias' => 'SharingGroup',
                     'type' => 'inner',
                     'conditions'=> array(
-                        'SharingGroup.id = EventsSharingGroup.sharing_group_id',
+                        'SharingGroup.id = SharingObject.sharing_group_id',
                         'SharingGroup.id' => Set::extract('/SharingGroup/id', $org)
                         )
                 )
             );
-        }
+        }*/
 
 
 		$this->paginate['contain'] = array(
@@ -1000,7 +1000,7 @@ class EventsController extends AppController {
 		$this->set('analysisDescriptions', $this->Event->analysisDescriptions);
 		$this->set('analysisLevels', $this->Event->analysisLevels);
         $this->set('sharingGroups', $this->Event->SharingGroup->find('list'));
-        $this->set('servers', $this->Event->Server->find('list'));
+        //$this->set('servers', $this->Event->Server->find('list'));
 		$this->set('eventDescriptions', $this->Event->fieldDescriptions);
 
 		$this->set('event', $this->Event->data);

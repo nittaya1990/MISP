@@ -307,22 +307,20 @@ class Event extends AppModel {
 		),
 		'EventTag' => array(
 				'className' => 'EventTag',
-		)
-	);
-
-	public $hasAndBelongsToMany = array(
-		'SharingGroup' => array(
-			'className' => 'SharingGroup',
-			'joinTable' => 'events_sharing_groups',
-			'foreignKey' => 'event_id',
-			'associationForeignKey' => 'sharing_group_id',
 		),
-        'Server' => array(
-            'className' => 'Server',
-            'joinTable' => 'events_servers',
-            'foreignKey' => 'event_id',
-            'associationForeignKey' => 'server_id',
-        )
+		'SharingObject' => array(
+			'className' => 'SharingObject',
+			'foreignKey' => 'foreign_key',
+			'dependent' => true,	// cascade deletes
+			'conditions' => array('SharingObject.object_type = "event"'),
+			'fields' => '',
+			'order' => '',
+			'limit' => '',
+			'offset' => '',
+			'exclusive' => '',
+			'finderQuery' => '',
+			'counterQuery' => ''
+		)
 	);
 
 	public function beforeDelete($cascade = true) {
@@ -362,15 +360,15 @@ class Event extends AppModel {
 		// TODO refactor analysis into an Enum (in the database)
 		if (isset($this->data['Event']['analysis'])) {
 			switch($this->data['Event']['analysis']){
-			    case 'Initial':
-			        $this->data['Event']['analysis'] = 0;
-			        break;
-			    case 'Ongoing':
-			        $this->data['Event']['analysis'] = 1;
-			        break;
-			    case 'Completed':
-			        $this->data['Event']['analysis'] = 2;
-			        break;
+				case 'Initial':
+					$this->data['Event']['analysis'] = 0;
+					break;
+				case 'Ongoing':
+					$this->data['Event']['analysis'] = 1;
+					break;
+				case 'Completed':
+					$this->data['Event']['analysis'] = 2;
+					break;
 			}
 		}
 
@@ -394,20 +392,20 @@ class Event extends AppModel {
 		$this->Correlation = ClassRegistry::init('Correlation');
 		// search the correlation table for the event ids of the related events
 		if (!$isSiteAdmin) {
-		    $conditionsCorrelation = array('AND' =>
-		            array('Correlation.1_event_id' => $eventId),
-		            array("OR" => array(
-		                    'Correlation.org' => $me['org'],
-		                    'Correlation.private' => 0),
-		            ));
+			$conditionsCorrelation = array('AND' =>
+					array('Correlation.1_event_id' => $eventId),
+					array("OR" => array(
+							'Correlation.org' => $me['org'],
+							'Correlation.private' => 0),
+					));
 		} else {
-		    $conditionsCorrelation = array('Correlation.1_event_id' => $eventId);
+			$conditionsCorrelation = array('Correlation.1_event_id' => $eventId);
 		}
 		$correlations = $this->Correlation->find('all',array(
-		        'fields' => 'Correlation.event_id',
-		        'conditions' => $conditionsCorrelation,
-		        'recursive' => 0,
-		        'order' => array('Correlation.event_id DESC')));
+				'fields' => 'Correlation.event_id',
+				'conditions' => $conditionsCorrelation,
+				'recursive' => 0,
+				'order' => array('Correlation.event_id DESC')));
 
 		$relatedEventIds = array();
 		foreach ($correlations as $correlation) {
@@ -431,29 +429,29 @@ class Event extends AppModel {
 		$this->Correlation = ClassRegistry::init('Correlation');
 		// search the correlation table for the event ids of the related attributes
 		if (!$isSiteAdmin) {
-		    $conditionsCorrelation = array('AND' =>
-		            array('Correlation.1_event_id' => $id),
-		            array("OR" => array(
-		                    'Correlation.org' => $me['org'],
-		                    'Correlation.private' => 0),
-		            ));
+			$conditionsCorrelation = array('AND' =>
+					array('Correlation.1_event_id' => $id),
+					array("OR" => array(
+							'Correlation.org' => $me['org'],
+							'Correlation.private' => 0),
+					));
 		} else {
-		    $conditionsCorrelation = array('Correlation.1_event_id' => $id);
+			$conditionsCorrelation = array('Correlation.1_event_id' => $id);
 		}
 		$correlations = $this->Correlation->find('all',array(
-		        'fields' => 'Correlation.*',
-		        'conditions' => $conditionsCorrelation,
-		        'recursive' => 0,
-		        'order' => array('Correlation.event_id DESC')));
+				'fields' => 'Correlation.*',
+				'conditions' => $conditionsCorrelation,
+				'recursive' => 0,
+				'order' => array('Correlation.event_id DESC')));
 		$relatedAttributes = array();
 		foreach($correlations as $correlation) {
 			$current = array(
-		            'id' => $correlation['Correlation']['event_id'],
-		            'org' => $correlation['Correlation']['org'],
-		    		'info' => $correlation['Correlation']['info']
-		    );
+					'id' => $correlation['Correlation']['event_id'],
+					'org' => $correlation['Correlation']['org'],
+					'info' => $correlation['Correlation']['info']
+			);
 			if (empty($relatedAttributes[$correlation['Correlation']['1_attribute_id']]) || !in_array($current, $relatedAttributes[$correlation['Correlation']['1_attribute_id']])) {
-		    	$relatedAttributes[$correlation['Correlation']['1_attribute_id']][] = $current;
+				$relatedAttributes[$correlation['Correlation']['1_attribute_id']][] = $current;
 			}
 		}
 		return $relatedAttributes;
@@ -556,17 +554,17 @@ class Event extends AppModel {
 
 		$data = json_encode($data);
 		ob_start();
-	    passthru(Configure::read('MISP.taxii_client_path'). " -t string -th ".
-	    	$server['Server']['url']." -d '".$data."'");
+		passthru(Configure::read('MISP.taxii_client_path'). " -t string -th ".
+			$server['Server']['url']." -d '".$data."'");
 
-	    /**
-	     * Response sample:
-	     * '{"in_response_to": "44492", "status_detail": "Total Time: 0.0200021266937", "extended_headers": {},
-	     * "message": "Event saved.", "message_type": "Status_Message", "message_id": "79739", "status_type":
-	     * "SUCCESS"}'
-	     */
+		/**
+		 * Response sample:
+		 * '{"in_response_to": "44492", "status_detail": "Total Time: 0.0200021266937", "extended_headers": {},
+		 * "message": "Event saved.", "message_type": "Status_Message", "message_id": "79739", "status_type":
+		 * "SUCCESS"}'
+		 */
 
-	    return json_decode(ob_get_clean());
+		return json_decode(ob_get_clean());
 	}
 
 /**
@@ -920,8 +918,7 @@ class Event extends AppModel {
 			'recursive' => 0,
 			'fields' => $fields,
 			'contain' => array(
-                'User',
-                'SharingGroup',
+				'User',
 				'ThreatLevel' => array(
 						'fields' => array('ThreatLevel.name')
 				),
@@ -935,29 +932,29 @@ class Event extends AppModel {
 			)
 		);
 		if ($isSiteAdmin) $params['contain']['User'] = array('fields' => 'email');
-        if(!$isSiteAdmin){
-            $org_sharing = $this->User->Organisation->read(null, CakeSession::read('Auth.User.organisation_id'));
-            $params['contain']['User'] = array('fields' => 'email');
-            if(!empty($org_sharing)){
-                $params['joins'] = array(
-                        array(
-                            'table' => 'events_sharing_groups',
-                            'alias' => 'EventsSharingGroup',
-                            'type' => 'inner',
-                            'conditions'=> array('EventsSharingGroup.event_id = Event.id')
-                        ),
-                        array(
-                            'table' => 'sharing_groups',
-                            'alias' => 'SharingGroup',
-                            'type' => 'inner',
-                            'conditions'=> array(
-                                'SharingGroup.id = EventsSharingGroup.sharing_group_id',
-                                'SharingGroup.id' => Set::extract('/SharingGroup/id', $org_sharing)
-                                )
-                        )
-                    );
-            }
-        }
+		/*if(!$isSiteAdmin && Configure::read('MISP.enable_sharing_groups')){
+			$org_sharing = $this->User->Organisation->read(null, CakeSession::read('Auth.User.organisation_id'));
+			$params['contain']['User'] = array('fields' => 'email');
+			if(!empty($org_sharing)){
+				$params['joins'] = array(
+						array(
+							'table' => 'events_sharing_groups',
+							'alias' => 'EventsSharingGroup',
+							'type' => 'inner',
+							'conditions'=> array('EventsSharingGroup.event_id = Event.id')
+						),
+						array(
+							'table' => 'sharing_groups',
+							'alias' => 'SharingGroup',
+							'type' => 'inner',
+							'conditions'=> array(
+								'SharingGroup.id = EventsSharingGroup.sharing_group_id',
+								'SharingGroup.id' => Set::extract('/SharingGroup/id', $org_sharing)
+								)
+						)
+					);
+			}
+		}*/
 
 		$results = $this->find('all', $params);
 		// Do some refactoring with the event
@@ -986,116 +983,116 @@ class Event extends AppModel {
 		$final = array();
 		$attributeList = array();
 		$conditions = array();
-	 	$econditions = array();
-	 	$this->recursive = -1;
-	 	// If we are not in the search result csv download function then we need to check what can be downloaded. CSV downloads are already filtered by the search function.
-	 	if ($eventid !== 'search') {
-	 		// This is for both single event downloads and for full downloads. Org has to be the same as the user's or distribution not org only - if the user is no siteadmin
-	 		if(!$isSiteAdmin) {
-	 			$econditions['AND']['OR'] = array('Event.distribution >' => 0, 'Event.org =' => $org);
-	 		}
-	 		if ($eventid == 0 && $ignore == 0) {
-	 			$econditions['AND'][] = array('Event.published =' => 1);
-	 		}
-	 		// If it's a full download (eventid == null) and the user is not a site admin, we need to first find all the events that the user can see and save the IDs
-	 		if ($eventid == 0) {
-	 			$this->recursive = -1;
-	 			// If we sent any tags along, load the associated tag names for each attribute
-	 			if ($tags !== '') {
-	 				$tag = ClassRegistry::init('Tag');
-	 				$args = $this->Attribute->dissectArgs($tags);
-	 				$tagArray = $tag->fetchEventTagIds($args[0], $args[1]);
-	 				$temp = array();
-	 				foreach ($tagArray[0] as $accepted) {
-	 					$temp['OR'][] = array('Event.id' => $accepted);
-	 				}
-	 				$conditions['AND'][] = $temp;
-	 				$temp = array();
-	 				foreach ($tagArray[1] as $rejected) {
-	 					$temp['AND'][] = array('Event.id !=' => $rejected);
-	 				}
-	 				$econditions['AND'][] = $temp;
-	 			}
-	 			// let's add the conditions if we're dealing with a non-siteadmin user
-	 			$params = array(
-	 					'conditions' => $econditions,
-	 					'fields' => array('id', 'distribution', 'org', 'published'),
-	 			);
-	 			$events = $this->find('all', $params);
-	 		}
-	 		// if we have items in events, add their IDs to the conditions. If we're a site admin, or we have a single event selected for download, this should be empty
-	 		if (isset($events)) {
-	 			foreach ($events as $event) {
-	 				$conditions['AND']['OR'][] = array('Attribute.event_id' => $event['Event']['id']);
-	 			}
-	 		}
-	 		// if we're downloading a single event, set it as a condition
-	 		if ($eventid!=0) {
-	 			$conditions['AND'][] = array('Attribute.event_id' => $eventid);
-	 		}
-	 		//restricting to non-private or same org if the user is not a site-admin.
-	 		if ($ignore == 0) {
-	 			$conditions['AND'][] = array('Attribute.to_ids' => 1);
-	 		}
+		$econditions = array();
+		$this->recursive = -1;
+		// If we are not in the search result csv download function then we need to check what can be downloaded. CSV downloads are already filtered by the search function.
+		if ($eventid !== 'search') {
+			// This is for both single event downloads and for full downloads. Org has to be the same as the user's or distribution not org only - if the user is no siteadmin
+			if(!$isSiteAdmin) {
+				$econditions['AND']['OR'] = array('Event.distribution >' => 0, 'Event.org =' => $org);
+			}
+			if ($eventid == 0 && $ignore == 0) {
+				$econditions['AND'][] = array('Event.published =' => 1);
+			}
+			// If it's a full download (eventid == null) and the user is not a site admin, we need to first find all the events that the user can see and save the IDs
+			if ($eventid == 0) {
+				$this->recursive = -1;
+				// If we sent any tags along, load the associated tag names for each attribute
+				if ($tags !== '') {
+					$tag = ClassRegistry::init('Tag');
+					$args = $this->Attribute->dissectArgs($tags);
+					$tagArray = $tag->fetchEventTagIds($args[0], $args[1]);
+					$temp = array();
+					foreach ($tagArray[0] as $accepted) {
+						$temp['OR'][] = array('Event.id' => $accepted);
+					}
+					$conditions['AND'][] = $temp;
+					$temp = array();
+					foreach ($tagArray[1] as $rejected) {
+						$temp['AND'][] = array('Event.id !=' => $rejected);
+					}
+					$econditions['AND'][] = $temp;
+				}
+				// let's add the conditions if we're dealing with a non-siteadmin user
+				$params = array(
+						'conditions' => $econditions,
+						'fields' => array('id', 'distribution', 'org', 'published'),
+				);
+				$events = $this->find('all', $params);
+			}
+			// if we have items in events, add their IDs to the conditions. If we're a site admin, or we have a single event selected for download, this should be empty
+			if (isset($events)) {
+				foreach ($events as $event) {
+					$conditions['AND']['OR'][] = array('Attribute.event_id' => $event['Event']['id']);
+				}
+			}
+			// if we're downloading a single event, set it as a condition
+			if ($eventid!=0) {
+				$conditions['AND'][] = array('Attribute.event_id' => $eventid);
+			}
+			//restricting to non-private or same org if the user is not a site-admin.
+			if ($ignore == 0) {
+				$conditions['AND'][] = array('Attribute.to_ids' => 1);
+			}
 
-	 		if ($type!=null) {
-	 			$conditions['AND'][] = array('Attribute.type' => $type);
-	 		}
+			if ($type!=null) {
+				$conditions['AND'][] = array('Attribute.type' => $type);
+			}
 
-	 		if ($category!=null) {
-	 			$conditions['AND'][] = array('Attribute.category' => $category);
-	 		}
+			if ($category!=null) {
+				$conditions['AND'][] = array('Attribute.category' => $category);
+			}
 
-	 		if (!$isSiteAdmin) {
-	 			$temp = array();
-	 			$distribution = array();
-	 			array_push($temp, array('Attribute.distribution >' => 0));
-	 			array_push($temp, array('(SELECT events.org FROM events WHERE events.id = Attribute.event_id) LIKE' => $org));
-	 			$conditions['OR'] = $temp;
-	 		}
-	 	}
-	 	if ($eventid === 'search') {
-		 	foreach ($attributeIDList as $aID) {
-		 		$conditions['AND']['OR'][] = array('Attribute.id' => $aID);
-		 	}
-	 	}
-	 	$params = array(
-	 			'conditions' => $conditions, //array of conditions
-	 			'fields' => array('Attribute.event_id', 'Attribute.distribution', 'Attribute.category', 'Attribute.type', 'Attribute.value', 'Attribute.uuid', 'Attribute.to_ids', 'Attribute.timestamp'),
-	 	);
-	 	$attributes = $this->Attribute->find('all', $params);
-	 	foreach ($attributes as &$attribute) {
-	 		$attribute['Attribute']['value'] = str_replace(array("\r\n", "\n", "\r"), "", $attribute['Attribute']['value']);
-	 		$attribute['Attribute']['timestamp'] = date('Ymd', $attribute['Attribute']['timestamp']);
-	 	}
-	 	return $attributes;
+			if (!$isSiteAdmin) {
+				$temp = array();
+				$distribution = array();
+				array_push($temp, array('Attribute.distribution >' => 0));
+				array_push($temp, array('(SELECT events.org FROM events WHERE events.id = Attribute.event_id) LIKE' => $org));
+				$conditions['OR'] = $temp;
+			}
+		}
+		if ($eventid === 'search') {
+			foreach ($attributeIDList as $aID) {
+				$conditions['AND']['OR'][] = array('Attribute.id' => $aID);
+			}
+		}
+		$params = array(
+				'conditions' => $conditions, //array of conditions
+				'fields' => array('Attribute.event_id', 'Attribute.distribution', 'Attribute.category', 'Attribute.type', 'Attribute.value', 'Attribute.uuid', 'Attribute.to_ids', 'Attribute.timestamp'),
+		);
+		$attributes = $this->Attribute->find('all', $params);
+		foreach ($attributes as &$attribute) {
+			$attribute['Attribute']['value'] = str_replace(array("\r\n", "\n", "\r"), "", $attribute['Attribute']['value']);
+			$attribute['Attribute']['timestamp'] = date('Ymd', $attribute['Attribute']['timestamp']);
+		}
+		return $attributes;
 	 }
 
 	 public function sendAlertEmailRouter($id, $user) {
-	 	if (Configure::read('MISP.background_jobs')) {
-	 		$job = ClassRegistry::init('Job');
-	 		$job->create();
-	 		$data = array(
-	 				'worker' => 'default',
-	 				'job_type' => 'publish_alert_email',
-	 				'job_input' => 'Event: ' . $id,
-	 				'status' => 0,
-	 				'retries' => 0,
-	 				'org' => $user['org'],
-	 				'message' => 'Sending...',
-	 		);
-	 		$job->save($data);
-	 		$jobId = $job->id;
-	 		$process_id = CakeResque::enqueue(
-	 				'default',
-	 				'EventShell',
-	 				array('alertemail', $user['org'], $jobId, $id)
-	 		);
-	 		$job->saveField('process_id', $process_id);
-	 		return true;
-	 	} else {
-	 		return ($this->sendAlertEmail($id, $user['org']));
-	 	}
+		if (Configure::read('MISP.background_jobs')) {
+			$job = ClassRegistry::init('Job');
+			$job->create();
+			$data = array(
+					'worker' => 'default',
+					'job_type' => 'publish_alert_email',
+					'job_input' => 'Event: ' . $id,
+					'status' => 0,
+					'retries' => 0,
+					'org' => $user['org'],
+					'message' => 'Sending...',
+			);
+			$job->save($data);
+			$jobId = $job->id;
+			$process_id = CakeResque::enqueue(
+					'default',
+					'EventShell',
+					array('alertemail', $user['org'], $jobId, $id)
+			);
+			$job->saveField('process_id', $process_id);
+			return true;
+		} else {
+			return ($this->sendAlertEmail($id, $user['org']));
+		}
 	 }
 
 	public function sendAlertEmail($id, $org, $processId = null) {
@@ -1225,52 +1222,52 @@ class Event extends AppModel {
 			} else {
 				$conditions = array('User.autoalert' => 1, 'User.gpgkey !=' => "");
 			}
- 			$alertUsers = $this->User->find('all', array(
- 					'conditions' => $conditions,
- 					'recursive' => 0,
- 				)
+			$alertUsers = $this->User->find('all', array(
+					'conditions' => $conditions,
+					'recursive' => 0,
+				)
 			);
- 			$max = count($alertUsers);
- 			// encrypt the mail for each user and send it separately
- 			foreach ($alertUsers as $k => &$user) {
- 				// send the email
- 				$Email = new CakeEmail();
- 				$Email->from(Configure::read('MISP.email'));
- 				$Email->to($user['User']['email']);
+			$max = count($alertUsers);
+			// encrypt the mail for each user and send it separately
+			foreach ($alertUsers as $k => &$user) {
+				// send the email
+				$Email = new CakeEmail();
+				$Email->from(Configure::read('MISP.email'));
+				$Email->to($user['User']['email']);
 				$Email->subject("[" . Configure::read('MISP.org') . " " . Configure::read('MISP.name') . "] Event " . $id . " - " . $subject . " - " . $event['ThreatLevel']['name'] . " - TLP Amber");
- 				$Email->emailFormat('text');		// both text or html
-  					// import the key of the user into the keyring
- 				// this is not really necessary, but it enables us to find
- 				// the correct key-id even if it is not the same as the emailaddress
- 				$keyImportOutput = $gpg->importKey($user['User']['gpgkey']);
- 				// say what key should be used to encrypt
- 				try {
- 					$gpg = new Crypt_GPG(array('homedir' => Configure::read('GnuPG.homedir')));
- 					$gpg->addEncryptKey($keyImportOutput['fingerprint']); // use the key that was given in the import
-  						$bodyEncSig = $gpg->encrypt($bodySigned, true);
- 						$Email->send($bodyEncSig);
- 				} catch (Exception $e){
- 					// catch errors like expired PGP keys
- 					$this->log($e->getMessage());
- 					// no need to return here, as we want to send out mails to the other users if GPG encryption fails for a single user
- 				}
- 				// If you wish to send multiple emails using a loop, you'll need
- 				// to reset the email fields using the reset method of the Email component.
- 				$Email->reset();
- 				if ($processId) {
- 					$this->Job->saveField('progress', ($k / $max * 50) + 50);
- 				}
- 			}
+				$Email->emailFormat('text');		// both text or html
+					// import the key of the user into the keyring
+				// this is not really necessary, but it enables us to find
+				// the correct key-id even if it is not the same as the emailaddress
+				$keyImportOutput = $gpg->importKey($user['User']['gpgkey']);
+				// say what key should be used to encrypt
+				try {
+					$gpg = new Crypt_GPG(array('homedir' => Configure::read('GnuPG.homedir')));
+					$gpg->addEncryptKey($keyImportOutput['fingerprint']); // use the key that was given in the import
+						$bodyEncSig = $gpg->encrypt($bodySigned, true);
+						$Email->send($bodyEncSig);
+				} catch (Exception $e){
+					// catch errors like expired PGP keys
+					$this->log($e->getMessage());
+					// no need to return here, as we want to send out mails to the other users if GPG encryption fails for a single user
+				}
+				// If you wish to send multiple emails using a loop, you'll need
+				// to reset the email fields using the reset method of the Email component.
+				$Email->reset();
+				if ($processId) {
+					$this->Job->saveField('progress', ($k / $max * 50) + 50);
+				}
+			}
 		} catch (Exception $e){
- 			// catch errors like expired PGP keys
+			// catch errors like expired PGP keys
 			$this->log($e->getMessage());
- 			return $e->getMessage();
- 		}
- 	if ($processId) {
- 		$this->Job->saveField('message', 'Mails sent.');
- 	}
- 	// LATER check if sending email succeeded and return appropriate result
- 	return true;
+			return $e->getMessage();
+		}
+	if ($processId) {
+		$this->Job->saveField('message', 'Mails sent.');
+	}
+	// LATER check if sending email succeeded and return appropriate result
+	return true;
 	}
 
 	public function sendContactEmail($id, $message, $all, $user, $isSiteAdmin) {
@@ -1456,8 +1453,8 @@ class Event extends AppModel {
 				'Event' => array('org', 'orgc', 'date', 'threat_level_id', 'analysis', 'info', 'user_id', 'published', 'uuid', 'timestamp', 'distribution', 'locked'),
 				'Attribute' => array('event_id', 'category', 'type', 'value', 'value1', 'value2', 'to_ids', 'uuid', 'revision', 'timestamp', 'distribution', 'comment')
 		);
-        //die(debug($data));
-        //$data['SharingGroup'] = $data['SharingGroup']['SharingGroup'];
+		//die(debug($data));
+		//$data['SharingGroup'] = $data['SharingGroup']['SharingGroup'];
 		$saveResult = $this->saveAssociated($data, array('validate' => true, 'fieldList' => $fieldList,
 				'atomic' => true));
 		// FIXME chri: check if output of $saveResult is what we expect when data not valid, see issue #104
