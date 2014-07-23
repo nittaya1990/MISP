@@ -173,7 +173,7 @@
 							<span class="logoBlue">MISP</span>
 						</a>
 					</li>
-					<li><a href="/users/logout">Log out</a></li>
+					<li><a href="/users/logout" title="Logout <?php echo $me['email'], ' - ', $me['Organisation']['name'];?>">Log out</a></li>
 				</ul>
 			</div>
 		<?php endif;?>
