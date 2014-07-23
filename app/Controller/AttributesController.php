@@ -242,8 +242,17 @@ class AttributesController extends AppController {
 				$this->Attribute->create();
 
 				$savedId = $this->Attribute->getId();
-
-				if ($this->Attribute->save($this->request->data)) {
+                $this->request->data['SharingObject'] = $this->Attribute->getSharingObjects(
+                    array(
+                        'object_type' => 'attribute',
+                        'sharing_groups' => $this->request->data['Attribute']['SharingGroup'])
+                );
+                $fieldList = array(
+                    'Attribute' => array(
+                        'event_id', 'category', 'type', 'value1', 'value2', 'to_ids', 'distribution', 'value', 'timestamp', 'comment'),
+                    'SharingObject' => array('sharing_group_id', 'foreign_key', 'object_type', 'organisation_uuid', 'sharing_group_uuid')
+                );
+				if ($this->Attribute->saveAssociated($this->request->data, array('validate' => true, 'fieldList' => $fieldList))) {
 					if ($this->_isRest()) {
 						// REST users want to see the newly created attribute
 						$this->view($this->Attribute->getId());
@@ -298,6 +307,9 @@ class AttributesController extends AppController {
 		$this->set('typeDefinitions', $this->Attribute->typeDefinitions);
 		$this->set('categoryDefinitions', $this->Attribute->categoryDefinitions);
 		$this->set('published', $events['Event']['published']);
+        $this->set('sharingGroups', $this->Attribute->SharingObject->SharingGroup->find('list'));
+        $sgs = $this->Attribute->getSharingGroups(array('foreign_key' => $eventId));
+        $this->set('selectedSharingGroups', Set::extract('/SharingObject/sharing_group_id', $sgs));
 	}
 
 	public function download($id = null) {
@@ -747,14 +759,27 @@ class AttributesController extends AppController {
 			} else {
 				$this->request->data['Attribute']['timestamp'] = $date->getTimestamp();
 			}
-			$fieldList = array('category', 'type', 'value1', 'value2', 'to_ids', 'distribution', 'value', 'timestamp', 'comment');
+			$this->Attribute->clearSharingObjects(array(
+                'object_type' => 'attribute',
+                'foreign_key' => $id
+                ));
+            $this->request->data['SharingObject'] = $this->Attribute->getSharingObjects(
+                array(
+                    'object_type' => 'attribute',
+                    'sharing_groups' => $this->request->data['Attribute']['SharingGroup'])
+            );
+            $fieldList = array(
+                    'Attribute' => array(
+                        'category', 'type', 'value1', 'value2', 'to_ids', 'distribution', 'value', 'timestamp', 'comment'),
+                    'SharingObject' => array('sharing_group_id', 'foreign_key', 'object_type', 'organisation_uuid', 'sharing_group_uuid')
+                );
 
 			$this->loadModel('Event');
 			$this->Event->id = $eventId;
 
 			// enabling / disabling the distribution field in the edit view based on whether user's org == orgc in the event
 			$this->Event->read();
-			if ($this->Attribute->save($this->request->data)) {
+			if ($this->Attribute->saveAssociated($this->request->data, array('validate' => true, 'fieldList' => $fieldList))) {
 				$this->Session->setFlash(__('The attribute has been saved'));
 				// remove the published flag from the event
 				$this->Event->set('timestamp', $date->getTimestamp());
@@ -803,6 +828,15 @@ class AttributesController extends AppController {
 		$this->set('attrDescriptions', $this->Attribute->fieldDescriptions);
 		$this->set('typeDefinitions', $this->Attribute->typeDefinitions);
 		$this->set('categoryDefinitions', $this->Attribute->categoryDefinitions);
+        $this->set('sharingGroups', $this->Attribute->SharingObject->SharingGroup->find('list'));
+        $sgs = $this->Attribute->SharingObject->find('all', array(
+            'conditions' => array(
+                'object_type' => 'attribute',
+                'foreign_key' => $id
+            ),
+            'fields' => array('sharing_group_id')
+        ));
+        $this->set('selectedSharingGroups', Set::extract('/SharingObject/sharing_group_id', $sgs));
 	}
 
 	// ajax edit - post a single edited field and this method will attempt to save it and return a json with the validation errors if they occur.

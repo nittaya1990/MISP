@@ -50,11 +50,9 @@ class SharingGroup extends AppModel {
 
 	public function beforeValidate($options = array()) {
 		parent::beforeValidate();
-
 		if (empty($this->data['SharingGroup']['uuid'])) {
 			$this->data['SharingGroup']['uuid'] = String::uuid();
 		}
-
 		return true;
 	}
 }

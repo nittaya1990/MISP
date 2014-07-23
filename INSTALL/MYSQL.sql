@@ -378,7 +378,7 @@ CREATE TABLE IF NOT EXISTS `sharing_groups` (
 
 CREATE TABLE IF NOT EXISTS `organisations` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `sharing_group_id` int(11) NOT NULL,
+  `uuid` varchar(40) NOT NULL,
   `name` varchar(255) NOT NULL,
   `created` datetime DEFAULT NULL,
   `updated` datetime DEFAULT NULL,

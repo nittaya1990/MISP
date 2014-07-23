@@ -19,6 +19,12 @@ class Organisation extends AppModel{
 				//'last' => false, // Stop validation after this rule
 				//'on' => 'create', // Limit validation to 'create' or 'update' operations
 			),
+		),
+		'uuid' => array(
+			'uuid' => array(
+				'rule' => array('uuid'),
+				'message' => 'Please provide a valid UUID'
+			),
 		)
 	);
 
@@ -37,6 +43,16 @@ class Organisation extends AppModel{
 			'associationForeignKey' => 'sharing_group_id',
 		)
 	);
+
+	public function beforeValidate($options = array()) {
+		parent::beforeValidate();
+
+		if (empty($this->data['Organisation']['uuid'])) {
+			$this->data['Organisation']['uuid'] = String::uuid();
+		}
+
+		return true;
+	}
 
 	public function beforeDelete($cascade = false){
 		$count = $this->User->find('count', array(

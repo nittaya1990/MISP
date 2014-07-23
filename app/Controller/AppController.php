@@ -232,7 +232,9 @@ class AppController extends Controller {
 		return $this->Auth->user('org');
 	}
 
+	// @TODO: update to new sharing model
     protected function _isInMySharingGroup($event_id){
+    	return false;
         $org = ClassRegistry::init('Organisation')->read(null, $this->Auth->user('organisation_id'));
         $e = ClassRegistry::init('Event')->find('first', array(
             'joins' => array(

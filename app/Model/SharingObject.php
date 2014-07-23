@@ -5,6 +5,21 @@ class SharingObject extends AppModel {
 
 	public $actsAs = array('Containable');
 
+	public $validate = array(
+		'organisation_uuid' => array(
+			'uuid' => array(
+				'rule' => array('uuid'),
+				'message' => 'Please provide a valid UUID'
+			),
+		),
+		'sharing_group_uuid' => array(
+			'uuid' => array(
+				'rule' => array('uuid'),
+				'message' => 'Please provide a valid UUID'
+			),
+		)
+	);
+
 	public $belongsTo = array(
 		'Event' => array(
 			'className' => 'Event',

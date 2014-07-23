@@ -29,6 +29,10 @@
 				'div' => 'input clear',
 				'class' => 'input-xxlarge'
 		));
+        echo $this->Form->input('SharingGroup', array(
+            'multiple' => 'checkbox',
+            'div' => 'input clear',
+            'selected' => $selectedSharingGroups));
 		?>
 		<div class="input clear"></div>
 		<?php
@@ -51,7 +55,7 @@ echo $this->Form->button('Submit', array('class' => 'btn btn-primary'));
 echo $this->Form->end();
 ?>
 </div>
-<?php 
+<?php
 	$event['Event']['id'] = $this->request->data['Attribute']['event_id'];
 	$event['Event']['published'] = $published;
 	echo $this->element('side_menu', array('menuList' => 'event', 'menuItem' => 'addAttribute', 'event' => $event));

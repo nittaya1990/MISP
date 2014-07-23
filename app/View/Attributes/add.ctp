@@ -1,5 +1,5 @@
 <div class="attributes <? if (!$ajax) echo 'form';?>">
-<?php 
+<?php
 	echo $this->Form->create('Attribute', array('id'));
 ?>
 	<legend><?php echo __('Add Attribute'); ?></legend>
@@ -18,7 +18,7 @@
 				$initialDistribution = 3;
 				if (Configure::read('MISP.default_attribute_distribution') != null) {
 					if (Configure::read('MISP.default_attribute_distribution') === 'event') {
-						$initialDistribution = $currentDist;	
+						$initialDistribution = $currentDist;
 					} else {
 						$initialDistribution = Configure::read('MISP.default_attribute_distribution');
 					}
@@ -42,6 +42,11 @@
 					'div' => 'input clear',
 					'class' => 'input-xxlarge'
 			));
+
+            echo $this->Form->input('SharingGroup', array(
+            'multiple' => 'checkbox',
+            'div' => 'input clear',
+            'selected' => $selectedSharingGroups));
 			?>
 			<div class="input clear"></div>
 			<?php
@@ -76,14 +81,14 @@
 				</tr>
 			</table>
 		</div>
-	<?php 
-		else: 
+	<?php
+		else:
 			echo $this->Form->button('Submit', array('class' => 'btn btn-primary'));
 		endif;
 		echo $this->Form->end();
 	?>
 </div>
-<?php 
+<?php
 	if(!$ajax) {
 		$event['Event']['id'] = $this->request->data['Attribute']['event_id'];
 		$event['Event']['published'] = $published;
@@ -170,7 +175,7 @@ $(document).ready(function() {
         }).popover('show');
        // $('#'+e.currentTarget.id).on('mouseleave', $('#'+e.currentTarget.id).popover('destroy');
         //$('#'+e.currentTarget.id).on('mouseout', $('#'+e.currentTarget.id).popover('destroy'));
-       
+
 	});
 
 	// workaround for browsers like IE and Chrome that do now have an onmouseover on the 'options' of a select.
@@ -199,7 +204,7 @@ $(document).ready(function() {
 		$('#cancel_attribute_add').click(function() {
 			$('#gray_out').fadeOut();
 			$('#attribute_add_form').fadeOut();
-		});	
+		});
 
 	<?php endif; ?>
 });

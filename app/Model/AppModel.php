@@ -88,4 +88,66 @@ class AppModel extends Model {
 
 		return false;
 	}
+
+	/**
+	 * Return sharing groups for given foreign key
+	 * @param  array $params
+	 * @return array
+	 */
+	public function getSharingGroups($params){
+		$defaults = array(
+			'object_type' => 'event'
+		);
+		if(empty($params['foreign_key'])) return;
+		$params = $params + $defaults;
+		$sg = $this->SharingObject->find('all', array(
+			'conditions' => array(
+				'foreign_key' => $params['foreign_key'],
+				'object_type' => $params['object_type']
+			),
+			'fields' => array('sharing_group_id')
+		));
+		return $sg;
+	}
+
+	/**
+	 * Return sharing object for given sharing groups
+	 * @param  array $params
+	 * @return array
+	 */
+	public function getSharingObjects($params){
+		$defaults = array(
+			'sharing_groups' => false, 'object_type' => 'event'
+		);
+
+		if(empty($params['sharing_groups'])) return;
+		$params = $params + $defaults;
+
+		$sg = $this->SharingObject->SharingGroup->find('all', array(
+			'conditions' => array('SharingGroup.id' => $params['sharing_groups']),
+			'contain' => array('Organisation')));
+		$so = array();
+		foreach($sg as $ss){
+			$obj = array();
+			foreach($ss['Organisation'] as $sorg){
+				$obj['sharing_group_id'] = $ss['SharingGroup']['id'];
+				$obj['sharing_group_uuid'] = $ss['SharingGroup']['uuid'];
+				$obj['organisation_uuid'] = $sorg['uuid'];
+				$obj['object_type'] = $params['object_type'];
+			}
+			if(!empty($obj['sharing_group_uuid']) && !empty($obj['organisation_uuid'])) $so[] = $obj;
+		}
+		return $so;
+	}
+
+	public function clearSharingObjects($params){
+		$defaults = array(
+			'object_type' => 'event'
+		);
+
+		if(empty($params['foreign_key'])) return;
+		$params = $params + $defaults;
+		return $this->SharingObject->deleteAll($params);
+	}
+
 }

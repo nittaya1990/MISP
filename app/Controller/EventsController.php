@@ -588,8 +588,11 @@ class EventsController extends AppController {
 						is_uploaded_file($this->data['Event']['submittedgfi']['tmp_name'])) {
 					$this->Session->setFlash(__('You may only upload GFI Sandbox zip files.'));
 				} else {
+					$this->request->data['SharingObject'] = $this->Event->getSharingObjects(
+						array(
+							'sharing_groups' => $this->request->data['Event']['SharingGroup'])
+					);
 					if ($this->_isRest()) $this->request->data = $this->Event->updateXMLArray($this->request->data, false);
-					//die(debug($this->request->data));
 					$add = $this->Event->_add($this->request->data, $this->_isRest(), $this->Auth->user(), '');
 					if ($add && !is_numeric($add)) {
 						if ($this->_isRest()) {
@@ -648,11 +651,9 @@ class EventsController extends AppController {
 		// tooltip for analysis
 		$this->set('analysisDescriptions', $this->Event->analysisDescriptions);
 		$this->set('analysisLevels', $this->Event->analysisLevels);
-		$this->set('sharingGroups', $this->Event->SharingGroup->find('list'));
-		$org = $this->Event->User->Organisation->read(null, $this->Auth->user('organisation_id'));
-		$this->set('selectedSharingGroups', Set::extract('/SharingGroup/id', $org));
+		$this->set('sharingGroups', $this->Event->SharingObject->SharingGroup->find('list'));
 
-		$this->set('servers', $this->Event->Server->find('list'));
+		//$this->set('servers', $this->Event->Server->find('list'));
 		$this->set('eventDescriptions', $this->Event->fieldDescriptions);
 	}
 
@@ -900,9 +901,19 @@ class EventsController extends AppController {
 						} else throw new MethodNotAllowedException('Event could not be saved: The user used to edit the event is not authorised to do so. This can be caused by the user not being of the same organisation as the original creator of the event whilst also not being a site administrator.');
 					} else throw new MethodNotAllowedException('Event could not be saved: No timestamp on the pushed edit or event in the request not newer than the local copy.');
 				} else throw new MethodNotAllowedException('Event could not be saved: Could not find the local event.');
+
+				$this->Event->clearSharingObjects(array(
+					'object_type' => 'event',
+					'foreign_key' => $id
+					));
+				$this->request->data['SharingObject'] = $this->Event->getSharingObjects(
+					array(
+						'sharing_groups' => $this->request->data['Event']['SharingGroup'])
+				);
 				$fieldList = array(
 						'Event' => array('date', 'threat_level_id', 'analysis', 'info', 'published', 'uuid', 'from', 'distribution', 'timestamp'),
-						'Attribute' => array('event_id', 'category', 'type', 'value', 'value1', 'value2', 'to_ids', 'uuid', 'revision', 'distribution', 'timestamp', 'comment')
+						'Attribute' => array('event_id', 'category', 'type', 'value', 'value1', 'value2', 'to_ids', 'uuid', 'revision', 'distribution', 'timestamp', 'comment'),
+						'SharingObject' => array('sharing_group_id', 'foreign_key', 'object_type', 'organisation_uuid', 'sharing_group_uuid')
 				);
 
 				$c = 0;
@@ -954,7 +965,11 @@ class EventsController extends AppController {
 				}
 			}
 			// say what fields are to be updated
-			$fieldList = array('date', 'threat_level_id', 'analysis', 'info', 'published', 'distribution', 'timestamp');
+			//$fieldList = array('date', 'threat_level_id', 'analysis', 'info', 'published', 'distribution', 'timestamp');
+			$fieldList = array(
+					'Event' => array('date', 'threat_level_id', 'analysis', 'info', 'published', 'timestamp'),
+					'SharingObject' => array('sharing_group_id', 'foreign_key', 'object_type', 'organisation_uuid', 'sharing_group_uuid')
+			);
 
 			$this->Event->read();
 			// always force the org, but do not force it for admins
@@ -966,7 +981,15 @@ class EventsController extends AppController {
 			$this->request->data['Event']['published'] = 0;
 			$date = new DateTime();
 			$this->request->data['Event']['timestamp'] = $date->getTimestamp();
-			if ($this->Event->save($this->request->data, true, $fieldList)) {
+			$this->Event->clearSharingObjects(array(
+				'object_type' => 'event',
+				'foreign_key' => $id
+				));
+			$this->request->data['SharingObject'] = $this->Event->getSharingObjects(
+				array(
+					'sharing_groups' => $this->request->data['Event']['SharingGroup'])
+			);
+			if ($this->Event->saveAssociated($this->request->data, array('validate' => true, 'fieldlist' => $fieldList))) {
 				$this->Session->setFlash(__('The event has been saved'));
 				$this->redirect(array('action' => 'view', $id));
 			} else {
@@ -999,7 +1022,15 @@ class EventsController extends AppController {
 		// tooltip for analysis
 		$this->set('analysisDescriptions', $this->Event->analysisDescriptions);
 		$this->set('analysisLevels', $this->Event->analysisLevels);
-		$this->set('sharingGroups', $this->Event->SharingGroup->find('list'));
+		$this->set('sharingGroups', $this->Event->SharingObject->SharingGroup->find('list'));
+		$sgs = $this->Event->SharingObject->find('all', array(
+			'conditions' => array(
+				'object_type' => 'event',
+				'foreign_key' => $id
+			),
+			'fields' => array('sharing_group_id')
+		));
+		$this->set('selectedSharingGroups', Set::extract('/SharingObject/sharing_group_id', $sgs));
 		//$this->set('servers', $this->Event->Server->find('list'));
 		$this->set('eventDescriptions', $this->Event->fieldDescriptions);
 

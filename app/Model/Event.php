@@ -1447,11 +1447,12 @@ class Event extends AppModel {
 				unset ($attribute['id']);
 			}
 		}
-
+		//die(debug($data));
 		// FIXME chri: validatebut  the necessity for all these fields...impact on security !
 		$fieldList = array(
 				'Event' => array('org', 'orgc', 'date', 'threat_level_id', 'analysis', 'info', 'user_id', 'published', 'uuid', 'timestamp', 'distribution', 'locked'),
-				'Attribute' => array('event_id', 'category', 'type', 'value', 'value1', 'value2', 'to_ids', 'uuid', 'revision', 'timestamp', 'distribution', 'comment')
+				'Attribute' => array('event_id', 'category', 'type', 'value', 'value1', 'value2', 'to_ids', 'uuid', 'revision', 'timestamp', 'distribution', 'comment'),
+				'SharingObject' => array('sharing_group_id', 'foreign_key', 'object_type', 'organisation_uuid', 'sharing_group_uuid')
 		);
 		//die(debug($data));
 		//$data['SharingGroup'] = $data['SharingGroup']['SharingGroup'];
