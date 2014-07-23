@@ -177,28 +177,21 @@ class EventsController extends AppController {
 				}
 			}
 		}
-		/*if (!$this->_IsSiteAdmin() && Configure::read('MISP.enable_sharing_groups')) {
-			$org = $this->Event->User->Organisation->read(null, $this->Auth->user('organisation_id'));
-			$this->paginate['group'] = 'Event.id';
-			$this->paginate['joins'] = array(
-				array(
-					'table' => 'sharing_object',
-					'alias' => 'SharingObject',
-					'type' => 'inner',
-					'conditions'=> array('SharingObject.foreign_key = Event.id', 'SharingObject.object_type = "event"')
-				),
-				array(
-					'table' => 'sharing_groups',
-					'alias' => 'SharingGroup',
-					'type' => 'inner',
-					'conditions'=> array(
-						'SharingGroup.id = SharingObject.sharing_group_id',
-						'SharingGroup.id' => Set::extract('/SharingGroup/id', $org)
-						)
-				)
-			);
-		}*/
 
+
+		if (!$this->_IsSiteAdmin() && Configure::read('MISP.enable_sharing_groups')) {
+			$this->paginate['joins'] = array(
+					array(
+						'table' => 'sharing_objects',
+						'alias' => 'SharingObject',
+						'type' => 'inner',
+						'conditions' => array(
+							'SharingObject.foreign_key = Event.id',
+							'SharingObject.object_type = "event"',
+							'SharingObject.organisation_uuid' => $this->Auth->user()['Organisation']['uuid'])
+					)
+				);
+		}
 
 		$this->paginate['contain'] = array(
 			'ThreatLevel' => array(

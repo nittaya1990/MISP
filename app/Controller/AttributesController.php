@@ -50,35 +50,29 @@ class AttributesController extends AppController {
 	// do not show private to other orgs
 		// if not admin or own org, check private as well..
 		if (!$this->_isSiteAdmin()) {
-            $org = $this->Attribute->Event->User->Organisation->read(null, $this->Auth->user('organisation_id'));
-            if(!empty($org)){
-                $my_events = $this->Attribute->Event->find('list', array('joins' => array(
-                    array(
-                        'table' => 'events_sharing_groups',
-                        'alias' => 'EventsSharingGroup',
-                        'type' => 'inner',
-                        'conditions'=> array('EventsSharingGroup.event_id = Event.id')
-                    ),
-                    array(
-                        'table' => 'sharing_groups',
-                        'alias' => 'SharingGroup',
-                        'type' => 'inner',
-                        'conditions'=> array(
-                            'SharingGroup.id = EventsSharingGroup.sharing_group_id',
-                            'SharingGroup.id' => Set::extract('/SharingGroup/id', $org)
-                            )
-                    )
-                )));
-                if(!empty($my_events)){
-                    $this->paginate = Set::merge($this->paginate, array(
-                        'conditions' => array('AND' => array('Event.id' => $my_events))));
-                }
-            }
+			$org = $this->Attribute->Event->User->Organisation->read(null, $this->Auth->user('organisation_id'));
+			if(!empty($org)){
+				$my_events = $this->Attribute->Event->find('list', array('joins' => array(
+					array(
+						'table' => 'sharing_objects',
+						'alias' => 'SharingObject',
+						'type' => 'inner',
+						'conditions' => array(
+							'SharingObject.foreign_key = Event.id',
+							'SharingObject.object_type = "event"',
+							'SharingObject.organisation_uuid' => $this->Auth->user()['Organisation']['uuid'])
+					)
+				)));
+				if(!empty($my_events)){
+					$this->paginate = Set::merge($this->paginate, array(
+						'conditions' => array('AND' => array('Event.id' => $my_events))));
+				}
+			}
 
 			$this->paginate = Set::merge($this->paginate,array(
 			'conditions' =>
 					array(
-                        'OR' =>
+						'OR' =>
 							array(
 								'Event.org =' => $this->Auth->user('org'),
 								'AND' => array(
@@ -242,16 +236,16 @@ class AttributesController extends AppController {
 				$this->Attribute->create();
 
 				$savedId = $this->Attribute->getId();
-                $this->request->data['SharingObject'] = $this->Attribute->getSharingObjects(
-                    array(
-                        'object_type' => 'attribute',
-                        'sharing_groups' => $this->request->data['Attribute']['SharingGroup'])
-                );
-                $fieldList = array(
-                    'Attribute' => array(
-                        'event_id', 'category', 'type', 'value1', 'value2', 'to_ids', 'distribution', 'value', 'timestamp', 'comment'),
-                    'SharingObject' => array('sharing_group_id', 'foreign_key', 'object_type', 'organisation_uuid', 'sharing_group_uuid')
-                );
+				$this->request->data['SharingObject'] = $this->Attribute->getSharingObjects(
+					array(
+						'object_type' => 'attribute',
+						'sharing_groups' => $this->request->data['Attribute']['SharingGroup'])
+				);
+				$fieldList = array(
+					'Attribute' => array(
+						'event_id', 'category', 'type', 'value1', 'value2', 'to_ids', 'distribution', 'value', 'timestamp', 'comment'),
+					'SharingObject' => array('sharing_group_id', 'foreign_key', 'object_type', 'organisation_uuid', 'sharing_group_uuid')
+				);
 				if ($this->Attribute->saveAssociated($this->request->data, array('validate' => true, 'fieldList' => $fieldList))) {
 					if ($this->_isRest()) {
 						// REST users want to see the newly created attribute
@@ -307,9 +301,9 @@ class AttributesController extends AppController {
 		$this->set('typeDefinitions', $this->Attribute->typeDefinitions);
 		$this->set('categoryDefinitions', $this->Attribute->categoryDefinitions);
 		$this->set('published', $events['Event']['published']);
-        $this->set('sharingGroups', $this->Attribute->SharingObject->SharingGroup->find('list'));
-        $sgs = $this->Attribute->getSharingGroups(array('foreign_key' => $eventId));
-        $this->set('selectedSharingGroups', Set::extract('/SharingObject/sharing_group_id', $sgs));
+		$this->set('sharingGroups', $this->Attribute->SharingObject->SharingGroup->find('list'));
+		$sgs = $this->Attribute->getSharingGroups(array('foreign_key' => $eventId));
+		$this->set('selectedSharingGroups', Set::extract('/SharingObject/sharing_group_id', $sgs));
 	}
 
 	public function download($id = null) {
@@ -318,9 +312,9 @@ class AttributesController extends AppController {
 			throw new NotFoundException(__('Invalid attribute'));
 		}
 		$this->Attribute->read();
-        if(!$this->_isInMySharingGroup($this->Attribute->data['Event']['id'])){
-            throw new UnauthorizedException('You do not have the permission to view this event.');
-        }
+		if(!$this->_isInMySharingGroup($this->Attribute->data['Event']['id'])){
+			throw new UnauthorizedException('You do not have the permission to view this event.');
+		}
 		if (!$this->_isSiteAdmin() &&
 			$this->Auth->user('org') !=
 			$this->Attribute->data['Event']['org'] &&
@@ -548,13 +542,13 @@ class AttributesController extends AppController {
 			// Check if there were problems with the file upload
 			$tmpfile = new File($this->request->data['Attribute']['value']['tmp_name']);
 			if ((isset($this->request->data['Attribute']['value']['error']) && $this->request->data['Attribute']['value']['error'] == 0) ||
-			        (!empty( $this->request->data['Attribute']['value']['tmp_name']) && $this->request->data['Attribute']['value']['tmp_name'] != 'none')
+					(!empty( $this->request->data['Attribute']['value']['tmp_name']) && $this->request->data['Attribute']['value']['tmp_name'] != 'none')
 			) {
-			    if (!is_uploaded_file($tmpfile->path))
-			        throw new InternalErrorException('PHP says file was not uploaded. Are you attacking me?');
+				if (!is_uploaded_file($tmpfile->path))
+					throw new InternalErrorException('PHP says file was not uploaded. Are you attacking me?');
 			} else {
-			    $this->Session->setFlash(__('There was a problem to upload the file.', true), 'default', array(), 'error');
-			    $this->redirect(array('controller' => 'attributes', 'action' => 'add_threatconnect', $this->request->data['Attribute']['event_id']));
+				$this->Session->setFlash(__('There was a problem to upload the file.', true), 'default', array(), 'error');
+				$this->redirect(array('controller' => 'attributes', 'action' => 'add_threatconnect', $this->request->data['Attribute']['event_id']));
 			}
 			// verify mime type
 			$file_info = $tmpfile->info();
@@ -621,9 +615,9 @@ class AttributesController extends AppController {
 						if (preg_match("#^[0-9a-f]{32}$#", $attribute['value']))
 							$attribute['type'] = 'md5';
 						else if (preg_match("#^[0-9a-f]{40}$#", $attribute['value']))
-						    $attribute['type'] = 'sha1';
+							$attribute['type'] = 'sha1';
 						else if (preg_match("#^[0-9a-f]{64}$#", $attribute['value']))
-						    $attribute['type'] = 'sha256';
+							$attribute['type'] = 'sha256';
 						else
 							// do not keep attributes that do not have a match
 							$attribute=NULL;
@@ -760,19 +754,19 @@ class AttributesController extends AppController {
 				$this->request->data['Attribute']['timestamp'] = $date->getTimestamp();
 			}
 			$this->Attribute->clearSharingObjects(array(
-                'object_type' => 'attribute',
-                'foreign_key' => $id
-                ));
-            $this->request->data['SharingObject'] = $this->Attribute->getSharingObjects(
-                array(
-                    'object_type' => 'attribute',
-                    'sharing_groups' => $this->request->data['Attribute']['SharingGroup'])
-            );
-            $fieldList = array(
-                    'Attribute' => array(
-                        'category', 'type', 'value1', 'value2', 'to_ids', 'distribution', 'value', 'timestamp', 'comment'),
-                    'SharingObject' => array('sharing_group_id', 'foreign_key', 'object_type', 'organisation_uuid', 'sharing_group_uuid')
-                );
+				'object_type' => 'attribute',
+				'foreign_key' => $id
+				));
+			$this->request->data['SharingObject'] = $this->Attribute->getSharingObjects(
+				array(
+					'object_type' => 'attribute',
+					'sharing_groups' => $this->request->data['Attribute']['SharingGroup'])
+			);
+			$fieldList = array(
+					'Attribute' => array(
+						'category', 'type', 'value1', 'value2', 'to_ids', 'distribution', 'value', 'timestamp', 'comment'),
+					'SharingObject' => array('sharing_group_id', 'foreign_key', 'object_type', 'organisation_uuid', 'sharing_group_uuid')
+				);
 
 			$this->loadModel('Event');
 			$this->Event->id = $eventId;
@@ -828,15 +822,15 @@ class AttributesController extends AppController {
 		$this->set('attrDescriptions', $this->Attribute->fieldDescriptions);
 		$this->set('typeDefinitions', $this->Attribute->typeDefinitions);
 		$this->set('categoryDefinitions', $this->Attribute->categoryDefinitions);
-        $this->set('sharingGroups', $this->Attribute->SharingObject->SharingGroup->find('list'));
-        $sgs = $this->Attribute->SharingObject->find('all', array(
-            'conditions' => array(
-                'object_type' => 'attribute',
-                'foreign_key' => $id
-            ),
-            'fields' => array('sharing_group_id')
-        ));
-        $this->set('selectedSharingGroups', Set::extract('/SharingObject/sharing_group_id', $sgs));
+		$this->set('sharingGroups', $this->Attribute->SharingObject->SharingGroup->find('list'));
+		$sgs = $this->Attribute->SharingObject->find('all', array(
+			'conditions' => array(
+				'object_type' => 'attribute',
+				'foreign_key' => $id
+			),
+			'fields' => array('sharing_group_id')
+		));
+		$this->set('selectedSharingGroups', Set::extract('/SharingObject/sharing_group_id', $sgs));
 	}
 
 	// ajax edit - post a single edited field and this method will attempt to save it and return a json with the validation errors if they occur.
