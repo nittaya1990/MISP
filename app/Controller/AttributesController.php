@@ -52,17 +52,20 @@ class AttributesController extends AppController {
 		if (!$this->_isSiteAdmin()) {
 			$org = $this->Attribute->Event->User->Organisation->read(null, $this->Auth->user('organisation_id'));
 			if(!empty($org)){
-				$my_events = $this->Attribute->Event->find('list', array('joins' => array(
-					array(
-						'table' => 'sharing_objects',
-						'alias' => 'SharingObject',
-						'type' => 'inner',
-						'conditions' => array(
-							'SharingObject.foreign_key = Event.id',
-							'SharingObject.object_type = "event"',
-							'SharingObject.organisation_uuid' => $this->Auth->user()['Organisation']['uuid'])
-					)
-				)));
+				$my_events = $this->Attribute->Event->find('list', array(
+					'joins' => array(
+						array(
+							'table' => 'sharing_objects',
+							'alias' => 'SharingObject',
+							'type' => 'inner',
+							'conditions' => array(
+								'SharingObject.foreign_key = Event.id',
+								'SharingObject.object_type = "event"',
+								'SharingObject.organisation_uuid' => $this->Auth->user()['Organisation']['uuid'])
+						)
+					),
+					'group' => 'Event.id'
+				));
 				if(!empty($my_events)){
 					$this->paginate = Set::merge($this->paginate, array(
 						'conditions' => array('AND' => array('Event.id' => $my_events))));

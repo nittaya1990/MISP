@@ -939,17 +939,18 @@ class Event extends AppModel {
 		if ($isSiteAdmin) $params['contain']['User'] = array('fields' => 'email');
 		if (!$isSiteAdmin && Configure::read('MISP.enable_sharing_groups')) {
 			$params['joins'] = array(
-					array(
-						'table' => 'sharing_objects',
-						'alias' => 'SharingObject',
-						'type' => 'inner',
-						'conditions' => array(
-							'SharingObject.foreign_key = Event.id',
-							'SharingObject.object_type = "event"',
-							'SharingObject.organisation_uuid' => CakeSession::read('Auth.User.Organisation.uuid')
-						)
+				array(
+					'table' => 'sharing_objects',
+					'alias' => 'SharingObject',
+					'type' => 'inner',
+					'conditions' => array(
+						'SharingObject.foreign_key = Event.id',
+						'SharingObject.object_type = "event"',
+						'SharingObject.organisation_uuid' => CakeSession::read('Auth.User.Organisation.uuid')
 					)
-				);
+				)
+			);
+			$params['group'] = 'Event.id';
 		}
 
 		$results = $this->find('all', $params);
@@ -1059,8 +1060,21 @@ class Event extends AppModel {
 		}
 		$params = array(
 				'conditions' => $conditions, //array of conditions
-				'fields' => array('Attribute.event_id', 'Attribute.distribution', 'Attribute.category', 'Attribute.type', 'Attribute.value', 'Attribute.uuid', 'Attribute.to_ids', 'Attribute.timestamp'),
+				'fields' => array('Attribute.event_id', 'Attribute.distribution', 'Attribute.category', 'Attribute.type', 'Attribute.value', 'Attribute.uuid', 'Attribute.to_ids', 'Attribute.timestamp')
 		);
+		if(!$isSiteAdmin && Configure::read('MISP.enable_sharing_groups')){
+			$params['joins'] = array(
+				array(
+				'table' => 'sharing_objects',
+				'alias' => 'SharingObject',
+				'type' => 'inner',
+				'conditions' => array(
+					'SharingObject.foreign_key = Attribute.id',
+					'SharingObject.object_type = "attribute"',
+					'SharingObject.organisation_uuid' => CakeSession::read('Auth.User.Organisation.uuid'))
+			));
+			$params['group'] = 'Attribute.id';
+		}
 		$attributes = $this->Attribute->find('all', $params);
 		foreach ($attributes as &$attribute) {
 			$attribute['Attribute']['value'] = str_replace(array("\r\n", "\n", "\r"), "", $attribute['Attribute']['value']);

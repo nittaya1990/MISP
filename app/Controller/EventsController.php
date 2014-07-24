@@ -181,16 +181,17 @@ class EventsController extends AppController {
 
 		if (!$this->_IsSiteAdmin() && Configure::read('MISP.enable_sharing_groups')) {
 			$this->paginate['joins'] = array(
-					array(
-						'table' => 'sharing_objects',
-						'alias' => 'SharingObject',
-						'type' => 'inner',
-						'conditions' => array(
-							'SharingObject.foreign_key = Event.id',
-							'SharingObject.object_type = "event"',
-							'SharingObject.organisation_uuid' => $this->Auth->user()['Organisation']['uuid'])
-					)
-				);
+				array(
+					'table' => 'sharing_objects',
+					'alias' => 'SharingObject',
+					'type' => 'inner',
+					'conditions' => array(
+						'SharingObject.foreign_key = Event.id',
+						'SharingObject.object_type = "event"',
+						'SharingObject.organisation_uuid' => $this->Auth->user()['Organisation']['uuid'])
+				)
+			);
+			$this->paginate['group'] = 'Event.id';
 		}
 
 		$this->paginate['contain'] = array(

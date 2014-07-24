@@ -1186,6 +1186,19 @@ class Attribute extends AppModel {
 				'recursive' => 0, //int
 				'group' => array('Attribute.type', 'Attribute.value1'), //fields to GROUP BY
 		);
+		if(!$isSiteAdmin && Configure::read('MISP.enable_sharing_groups')){
+			$params['joins'] = array(
+				array(
+				'table' => 'sharing_objects',
+				'alias' => 'SharingObject',
+				'type' => 'inner',
+				'conditions' => array(
+					'SharingObject.foreign_key = Attribute.id',
+					'SharingObject.object_type = "attribute"',
+					'SharingObject.organisation_uuid' => CakeSession::read('Auth.User.Organisation.uuid'))
+			));
+			$params['group'][] = 'Attribute.id';
+		}
 		$items = $this->find('all', $params);
 		App::uses('HidsExport', 'Export');
 		$export = new HidsExport();
@@ -1229,6 +1242,19 @@ class Attribute extends AppModel {
 				'recursive' => 0, //int
 				'group' => array('Attribute.type', 'Attribute.value1'), //fields to GROUP BY
 		);
+		if(!$isSiteAdmin && Configure::read('MISP.enable_sharing_groups')){
+			$params['joins'] = array(
+				array(
+				'table' => 'sharing_objects',
+				'alias' => 'SharingObject',
+				'type' => 'inner',
+				'conditions' => array(
+					'SharingObject.foreign_key = Attribute.id',
+					'SharingObject.object_type = "attribute"',
+					'SharingObject.organisation_uuid' => CakeSession::read('Auth.User.Organisation.uuid'))
+			));
+			$params['group'][] = 'Attribute.id';
+		}
 		unset($this->virtualFields['category_order']);  // not needed for IDS export and speeds things up
 		$items = $this->find('all', $params);
 
@@ -1276,15 +1302,28 @@ class Attribute extends AppModel {
 		}
 
 		$params = array(
-				'conditions' => $conditions, //array of conditions
-				//'recursive' => 2, //int
-				//'fields' => array('Attribute.value'), //array of field names
-				'order' => array('Attribute.value'), //string or array defining order
-				'group' => array('Attribute.value'), //fields to GROUP BY
-				'contain' => array('Event' => array(
-						'fields' => array('Event.id', 'Event.published'),
+			'conditions' => $conditions, //array of conditions
+			//'recursive' => 2, //int
+			//'fields' => array('Attribute.value'), //array of field names
+			'order' => array('Attribute.value'), //string or array defining order
+			'group' => array('Attribute.value'), //fields to GROUP BY
+			'contain' => array('Event' => array(
+					'fields' => array('Event.id', 'Event.published'),
+			)));
 
-				)));
+		if(!$isSiteAdmin && Configure::read('MISP.enable_sharing_groups')){
+			$params['joins'] = array(
+				array(
+				'table' => 'sharing_objects',
+				'alias' => 'SharingObject',
+				'type' => 'inner',
+				'conditions' => array(
+					'SharingObject.foreign_key = Attribute.id',
+					'SharingObject.object_type = "attribute"',
+					'SharingObject.organisation_uuid' => CakeSession::read('Auth.User.Organisation.uuid'))
+			));
+			$params['group'][] = 'Attribute.id';
+		}
 
 		$attributes = $this->find('all', $params);
 		return $attributes;
