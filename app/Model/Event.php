@@ -923,8 +923,13 @@ class Event extends AppModel {
 						'fields' => array('ThreatLevel.name')
 				),
 				'Attribute' => array(
+					'SharingObject' => array(
+						'conditions' => array(
+							'SharingObject.organisation_uuid' => CakeSession::read('Auth.User.Organisation.uuid'))
+					),
 					'fields' => $fieldsAtt,
-					'conditions' => $conditionsAttributes,
+					'conditions' => $conditionsAttributes
+
 				),
 				'ShadowAttribute' => array(
 					'fields' => $fieldsShadowAtt,
@@ -932,29 +937,20 @@ class Event extends AppModel {
 			)
 		);
 		if ($isSiteAdmin) $params['contain']['User'] = array('fields' => 'email');
-		/*if(!$isSiteAdmin && Configure::read('MISP.enable_sharing_groups')){
-			$org_sharing = $this->User->Organisation->read(null, CakeSession::read('Auth.User.organisation_id'));
-			$params['contain']['User'] = array('fields' => 'email');
-			if(!empty($org_sharing)){
-				$params['joins'] = array(
-						array(
-							'table' => 'events_sharing_groups',
-							'alias' => 'EventsSharingGroup',
-							'type' => 'inner',
-							'conditions'=> array('EventsSharingGroup.event_id = Event.id')
-						),
-						array(
-							'table' => 'sharing_groups',
-							'alias' => 'SharingGroup',
-							'type' => 'inner',
-							'conditions'=> array(
-								'SharingGroup.id = EventsSharingGroup.sharing_group_id',
-								'SharingGroup.id' => Set::extract('/SharingGroup/id', $org_sharing)
-								)
+		if (!$isSiteAdmin && Configure::read('MISP.enable_sharing_groups')) {
+			$params['joins'] = array(
+					array(
+						'table' => 'sharing_objects',
+						'alias' => 'SharingObject',
+						'type' => 'inner',
+						'conditions' => array(
+							'SharingObject.foreign_key = Event.id',
+							'SharingObject.object_type = "event"',
+							'SharingObject.organisation_uuid' => CakeSession::read('Auth.User.Organisation.uuid')
 						)
-					);
-			}
-		}*/
+					)
+				);
+		}
 
 		$results = $this->find('all', $params);
 		// Do some refactoring with the event
@@ -964,6 +960,11 @@ class Event extends AppModel {
 			// Let's also find all the relations for the attributes - this won't be in the xml export though
 			$results[$eventKey]['RelatedAttribute'] = $this->getRelatedAttributes($me, $isSiteAdmin, $event['Event']['id']);
 			foreach ($event['Attribute'] as $key => &$attribute) {
+				if (!$isSiteAdmin && Configure::read('MISP.enable_sharing_groups')) {
+					if(empty($attribute['SharingObject'])){
+						unset($results[$eventKey]['Attribute'][$key]);
+					}
+				}
 				$attribute['ShadowAttribute'] = array();
 				// If a shadowattribute can be linked to an attribute, link it to it then remove it from the event
 				// This is to differentiate between proposals that were made to an attribute for modification and between proposals for new attributes
@@ -1447,15 +1448,12 @@ class Event extends AppModel {
 				unset ($attribute['id']);
 			}
 		}
-		//die(debug($data));
 		// FIXME chri: validatebut  the necessity for all these fields...impact on security !
 		$fieldList = array(
 				'Event' => array('org', 'orgc', 'date', 'threat_level_id', 'analysis', 'info', 'user_id', 'published', 'uuid', 'timestamp', 'distribution', 'locked'),
 				'Attribute' => array('event_id', 'category', 'type', 'value', 'value1', 'value2', 'to_ids', 'uuid', 'revision', 'timestamp', 'distribution', 'comment'),
 				'SharingObject' => array('sharing_group_id', 'foreign_key', 'object_type', 'organisation_uuid', 'sharing_group_uuid')
 		);
-		//die(debug($data));
-		//$data['SharingGroup'] = $data['SharingGroup']['SharingGroup'];
 		$saveResult = $this->saveAssociated($data, array('validate' => true, 'fieldList' => $fieldList,
 				'atomic' => true));
 		// FIXME chri: check if output of $saveResult is what we expect when data not valid, see issue #104
