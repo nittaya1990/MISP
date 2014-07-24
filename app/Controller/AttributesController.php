@@ -105,6 +105,18 @@ class AttributesController extends AppController {
 	public function index() {
 		$this->Attribute->recursive = 0;
 		$this->Attribute->contain = array('Event.id', 'Event.orgc', 'Event.org');
+		$this->paginate['joins'] = array(
+			array(
+				'table' => 'sharing_objects',
+				'alias' => 'SharingObject',
+				'type' => 'inner',
+				'conditions' => array(
+					'SharingObject.foreign_key = Attribute.id',
+					'SharingObject.object_type = "attribute"',
+					'SharingObject.organisation_uuid' => $this->Auth->user()['Organisation']['uuid'])
+			)
+		);
+		$this->paginate['group'] = 'Attribute.id';
 		$this->set('isSearch', 0);
 		$this->set('attributes', $this->paginate());
 		$this->set('attrDescriptions', $this->Attribute->fieldDescriptions);
