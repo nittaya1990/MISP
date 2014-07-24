@@ -3,6 +3,11 @@ App::uses('AppController', 'Controller');
 
 class OrganisationsController extends AppController {
 
+    public function beforeFilter(){
+        parent::beforeFilter();
+        if (!$this->_isSiteAdmin()) $this->redirect('/');
+    }
+
     public function admin_index() {
 
         if(!empty($this->request->data)){

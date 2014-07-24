@@ -3,8 +3,13 @@ App::uses('AppController', 'Controller');
 
 class SharingGroupsController extends AppController {
 
+	public function beforeFilter(){
+		parent::beforeFilter();
+		if (!$this->_isSiteAdmin()) $this->redirect('/');
+	}
+
 	public function admin_index() {
-        $this->paginate = array('contain' => array('Organisation'));
+		$this->paginate = array('contain' => array('Organisation'));
 		$this->set('sharingGroups', $this->paginate());
 	}
 
