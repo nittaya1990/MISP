@@ -178,7 +178,6 @@ class EventsController extends AppController {
 			}
 		}
 
-
 		if (!$this->_IsSiteAdmin() && Configure::read('MISP.enable_sharing_groups')) {
 			$this->paginate['joins'] = array(
 				array(
