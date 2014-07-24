@@ -1261,7 +1261,7 @@ class Attribute extends AppModel {
 		// export depending of the requested type
 		switch ($format) {
 			case 'suricata':
--				App::uses('NidsSuricataExport', 'Export');
+				App::uses('NidsSuricataExport', 'Export');
 				$export = new NidsSuricataExport();
 				break;
 			case 'snort':
