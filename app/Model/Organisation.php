@@ -3,6 +3,8 @@ App::uses('AppModel', 'Model');
 
 class Organisation extends AppModel{
 
+    public $displayField = 'uuid';
+
 	public $actsAs = array('Containable');
 
 	public $validate = array(
@@ -21,6 +23,10 @@ class Organisation extends AppModel{
 			),
 		),
 		'uuid' => array(
+            'unique' => array(
+                'rule' => 'isUnique',
+                'message' => 'An organisation with this UUID already exists.'
+            ),
 			'uuid' => array(
 				'rule' => array('uuid'),
 				'message' => 'Please provide a valid UUID'

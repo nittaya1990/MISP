@@ -3,6 +3,7 @@
     <fieldset>
         <legend><?php echo __('Add Organisation'); ?></legend>
     <?php echo $this->Form->input('name', array('class' => 'input-xxlarge'));
+    echo $this->Form->input('uuid', array('class' => 'input-xxlarge', 'div' => 'clear'));
     echo $this->Form->input('SharingGroup', array('multiple' => 'checkbox', 'div' => 'input clear'));
      ?>
     </fieldset>

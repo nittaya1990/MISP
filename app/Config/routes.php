@@ -52,7 +52,7 @@
 //	Router::connect('/:controller/:field/:newValue/:oldValue', array('action' => 'call'), array('pass' => array('field', 'newValue', 'oldValue')));
 
 	// Activate REST
-	Router::mapResources(array('events', 'attributes'));
+	Router::mapResources(array('events', 'attributes', 'organisations'));
 	Router::parseExtensions('xml', 'json');
 
 	Router::connectNamed(

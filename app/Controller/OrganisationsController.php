@@ -3,9 +3,16 @@ App::uses('AppController', 'Controller');
 
 class OrganisationsController extends AppController {
 
+    public $components = array('RequestHandler');
+
     public function beforeFilter(){
         parent::beforeFilter();
-        if (!$this->_isSiteAdmin()) $this->redirect('/');
+        if(!empty($this->request->params['admin']) && !$this->_isSiteAdmin()) $this->redirect('/');
+    }
+
+    public function index(){
+        $organisations = $this->Organisation->find('list');
+        $this->set(compact('organisations'));
     }
 
     public function admin_index() {
