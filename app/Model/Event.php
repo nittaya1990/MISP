@@ -485,6 +485,10 @@ class Event extends AppModel {
 	}
 
 	public function uploadEventToServer($event, $server, $HttpSocket = null) {
+		if(Configure::read('MISP.enable_sharing_groups')){
+			// add org UUID hook here since this is used in both Event::publish() and Server::push()
+			$event = $this->filterByRemoteSG($event, $server, $HttpSocket);
+		}
 		$updated = null;
 		$newLocation = $newTextBody = '';
 		$result = $this->restfullEventToServer($event, $server, null, $newLocation, $newTextBody, $HttpSocket);
@@ -565,6 +569,45 @@ class Event extends AppModel {
 		 */
 
 		return json_decode(ob_get_clean());
+	}
+
+	/**
+	 * Check event sharing object against remote organisations UUIDs
+	 *
+	 * @param  array $event
+	 * @param  array $server
+	 * @return array
+	 */
+	private function filterByRemoteSG($event, $server, $HttpSocket){
+		//debug($server);
+		//die(debug($event));
+
+		$r = array(
+			'header' => array(
+				'Authorization' => $server['Server']['authkey'],
+				'Accept' => 'application/json',
+				'Content-Type' => 'application/json',
+			)
+		);
+		$response = $HttpSocket->get($server['Server']['url'].'/organisations.json', array(), $r);
+		if($response->code == 200){
+			$remote_orgs = json_decode($response->body, true)['organisations'];
+			// why do we filter by Org UUID only?
+			// what's the purpose of SG in this case?
+			$eventsSO = $this->SharingObject->find('all', array(
+				'conditions' => array(
+					'foreign_key' => $event['Event']['id'],
+					'object_type' => 'event'
+				)
+			));
+			//die(debug($remote_orgs));
+		}
+
+		die(debug($response));
+
+		$event = $this->cleanOrgs($event);
+
+		return $event;
 	}
 
 /**

@@ -107,7 +107,7 @@ class Server extends AppModel {
 	public function isOwnedByOrg($serverid, $org) {
 		return $this->field('id', array('id' => $serverid, 'org' => $org)) === $serverid;
 	}
-	
+
 	public function pull($user, $id = null, $technique=false, $server, $jobId = false, $percent = 100, $current = 0) {
 		if ($jobId) {
 			$job = ClassRegistry::init('Job');
@@ -128,7 +128,7 @@ class Server extends AppModel {
 			} else if (is_string($eventIds)) {
 				return array(2, $eventIds);
 			}
-		
+
 			// reverse array of events, to first get the old ones, and then the new ones
 			if (!empty($eventIds)) {
 				$eventIds = array_reverse($eventIds);
@@ -137,7 +137,7 @@ class Server extends AppModel {
 		} elseif ("incremental" == $technique) {
 			// TODO incremental pull
 			return array (3, null);
-		
+
 		} elseif (true == $technique) {
 			$eventIds[] = intval($technique);
 		} else {
@@ -183,14 +183,14 @@ class Server extends AppModel {
 								$event['Event']['distribution'] = '0';
 								break;
 						}
-		
+
 						// correct $event if just one Attribute
 						if (is_array($event['Event']['Attribute']) && isset($event['Event']['Attribute']['id'])) {
 							$tmp = $event['Event']['Attribute'];
 							unset($event['Event']['Attribute']);
 							$event['Event']['Attribute'][0] = $tmp;
 						}
-		
+
 						if (is_array($event['Event']['Attribute'])) {
 							$size = is_array($event['Event']['Attribute']) ? count($event['Event']['Attribute']) : 0;
 							for ($i = 0; $i < $size; $i++) {
@@ -257,7 +257,7 @@ class Server extends AppModel {
 				// increment lastid based on the highest ID seen
 				$this->save($event, array('fieldList' => array('lastpulledid', 'url')));
 				// grab all of the shadow attributes that are relevant to us
-		
+
 				$events = $eventModel->find('all', array(
 						'fields' => array('id', 'uuid'),
 						'recursive' => -1,
@@ -302,12 +302,12 @@ class Server extends AppModel {
 			'email' => $user['email'],
 			'action' => 'pull',
 			'title' => 'Pull from ' . $server['Server']['url'] . ' initiated by ' . $user['email'],
-			'change' => count($successes) . ' events and ' . count($pulledProposals) . ' proposals pulled or updated. ' . count($fails) . ' events failed or didn\'t need an update.' 
+			'change' => count($successes) . ' events and ' . count($pulledProposals) . ' proposals pulled or updated. ' . count($fails) . ' events failed or didn\'t need an update.'
 		));
 		if (!isset($lastpulledid)) $lastpulledid = 0;
 		return array($successes, $fails, $pulledProposals, $lastpulledid);
 	}
-	
+
 	public function push($id = null, $technique=false, $jobId = false, $HttpSocket) {
 		if ($jobId) {
 			$job = ClassRegistry::init('Job');
