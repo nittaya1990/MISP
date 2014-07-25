@@ -349,7 +349,14 @@ class Server extends AppModel {
 			$lowestfailedid = null;
 			foreach ($eventIds as $k => $eventId) {
 				$eventModel->recursive=1;
-				$eventModel->contain(array('Attribute'));
+				$eventModel->contain(array(
+                    'SharingObject' => array('fields' => array('organisation_uuid')),
+                    'Attribute' => array(
+                        'SharingObject' => array(
+                            'fields' => array('organisation_uuid')
+                        )
+                    )
+                ));
 				$event = $eventModel->findById($eventId['Event']['id']);
 				$event['Event']['locked'] = true;
 				$result = $eventModel->uploadEventToServer(

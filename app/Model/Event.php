@@ -579,9 +579,6 @@ class Event extends AppModel {
 	 * @return array
 	 */
 	private function filterByRemoteSG($event, $server, $HttpSocket){
-		//debug($server);
-		//die(debug($event));
-
 		$r = array(
 			'header' => array(
 				'Authorization' => $server['Server']['authkey'],
@@ -592,21 +589,20 @@ class Event extends AppModel {
 		$response = $HttpSocket->get($server['Server']['url'].'/organisations.json', array(), $r);
 		if($response->code == 200){
 			$remote_orgs = json_decode($response->body, true)['organisations'];
-			// why do we filter by Org UUID only?
-			// what's the purpose of SG in this case?
-			$eventsSO = $this->SharingObject->find('all', array(
-				'conditions' => array(
-					'foreign_key' => $event['Event']['id'],
-					'object_type' => 'event'
-				)
-			));
-			//die(debug($remote_orgs));
+			// @FIXME: Use Set or Hash here
+			foreach($event['SharingObject'] as $k => &$eso){
+				if(!in_array($eso['organisation_uuid'], $remote_orgs)){
+					unset($event['SharingObject'][$k]);
+				}
+			}
+			foreach($event['Attribute'] as $k => &$attr){
+				foreach($attr['SharingObject'] as $key => &$aso){
+					if(!in_array($aso['organisation_uuid'], $remote_orgs)){
+						unset($event['Attribute'][$k]['SharingObject'][$key]);
+					}
+				}
+			}
 		}
-
-		die(debug($response));
-
-		$event = $this->cleanOrgs($event);
-
 		return $event;
 	}
 
@@ -1668,6 +1664,14 @@ class Event extends AppModel {
 		}
 		$this->id = $id;
 		$this->recursive = 0;
+		$this->contain(array(
+            'SharingObject' => array('fields' => array('organisation_uuid')),
+            'Attribute' => array(
+                'SharingObject' => array(
+                    'fields' => array('organisation_uuid')
+                )
+            )
+        ));
 		$event = $this->read(null, $id);
 		// update the DB to set the published flag
 		$fieldList = array('published', 'id', 'info', 'publish_timestamp');
