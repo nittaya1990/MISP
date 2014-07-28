@@ -11,7 +11,8 @@ class OrganisationsController extends AppController {
     }
 
     public function index(){
-        $organisations = $this->Organisation->find('list');
+        $orgs = $this->Organisation->find('all', array('fields' => array('uuid')));
+        $organisations = Set::extract('/Organisation/uuid', $orgs);
         $this->set(compact('organisations'));
     }
 

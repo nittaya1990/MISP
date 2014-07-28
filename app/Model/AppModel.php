@@ -120,7 +120,6 @@ class AppModel extends Model {
 			'sharing_groups' => false, 'object_type' => 'event'
 		);
 
-		if(empty($params['sharing_groups'])) return;
 		$params = $params + $defaults;
 
 		$sg = $this->SharingObject->SharingGroup->find('all', array(
@@ -137,6 +136,11 @@ class AppModel extends Model {
 			}
 			if(!empty($obj['sharing_group_uuid']) && !empty($obj['organisation_uuid'])) $so[] = $obj;
 		}
+        // add my org with null SG UUID
+        $so[] = array(
+            'object_type' => $params['object_type'],
+            'organisation_uuid' => CakeSession::read('Auth.User.Organisation.uuid')
+        );
 		return $so;
 	}
 

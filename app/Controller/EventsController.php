@@ -844,8 +844,8 @@ class EventsController extends AppController {
 		}
 
 		if(!$this->_isSiteAdmin() && !$this->_isInMySharingGroup($id)){
-			$this->Session->setFlash(__('This event is not part of your sharing group, you are not authorized to view it.'));
-			$this->redirect(array('controller' => 'events', 'action' => 'index'));
+			//$this->Session->setFlash(__('This event is not part of your sharing group, you are not authorized to view it.'));
+			//$this->redirect(array('controller' => 'events', 'action' => 'index'));
 		}
 
 		$this->Event->read(null, $id);

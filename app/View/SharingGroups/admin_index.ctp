@@ -4,7 +4,6 @@
 	<tr>
 			<th><?php echo $this->Paginator->sort('id'); ?></th>
 			<th><?php echo $this->Paginator->sort('name'); ?></th>
-            <th><?php echo $this->Paginator->sort('uuid'); ?></th>
             <th><?php echo $this->Paginator->sort('sharable'); ?></th>
 			<th><?php echo $this->Paginator->sort('description'); ?></th>
 			<th class="actions"><?php echo __('Actions'); ?></th>
@@ -15,7 +14,6 @@
 		<td><b><?php echo h($sharingGroup['SharingGroup']['name']); ?></b>&nbsp;<br>
             <?php echo implode(', ', Set::extract('/Organisation/name', $sharingGroup));?>
         </td>
-        <td><?php echo h($sharingGroup['SharingGroup']['uuid']); ?>&nbsp;</td>
         <td><?php echo ($sharingGroup['SharingGroup']['sharable'] == 1 ? 'Yes' : 'No');  ?>&nbsp;</td>
 		<td><?php echo h($sharingGroup['SharingGroup']['description']); ?>&nbsp;</td>
 		<td class="short action-links">

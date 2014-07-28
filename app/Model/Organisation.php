@@ -3,7 +3,7 @@ App::uses('AppModel', 'Model');
 
 class Organisation extends AppModel{
 
-    public $displayField = 'uuid';
+    public $recursive = -1;
 
 	public $actsAs = array('Containable');
 
