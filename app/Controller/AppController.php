@@ -62,7 +62,7 @@ class AppController extends Controller {
 			'Session',
 			'Auth' => array(
 				'loginAction' => array(
-					'controller' => 'customers',
+					'controller' => 'users',
 					'action' => 'login',
 					'admin'=> false,
 					'plugin' => false
