@@ -61,6 +61,12 @@ class AppController extends Controller {
 	public $components = array(
 			'Session',
 			'Auth' => array(
+				'loginAction' => array(
+					'controller' => 'customers',
+					'action' => 'login',
+					'admin'=> false,
+					'plugin' => false
+				),
 				'className' => 'SecureAuth',
 				'authenticate' => array(
 					'Form' => array(
@@ -92,9 +98,9 @@ class AppController extends Controller {
 			if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
 				$user = $this->checkAuthUser($_SERVER['HTTP_AUTHORIZATION']);
 				if ($user) {
-				    // User found in the db, add the user info to the session
-				    $this->Session->renew();
-				    $this->Session->write(AuthComponent::$sessionKey, $user['User']);
+					// User found in the db, add the user info to the session
+					$this->Session->renew();
+					$this->Session->write(AuthComponent::$sessionKey, $user['User']);
 				} else {
 					// User not authenticated correctly
 					// reset the session information
@@ -106,10 +112,10 @@ class AppController extends Controller {
 		// user must accept terms
 		//
 		if ($this->Session->check('Auth.User') && !$this->Auth->user('termsaccepted') && (!in_array($this->request->here, array('/users/terms', '/users/logout', '/users/login')))) {
-		    $this->redirect(array('controller' => 'users', 'action' => 'terms', 'admin' => false));
+			$this->redirect(array('controller' => 'users', 'action' => 'terms', 'admin' => false));
 		}
 		if ($this->Session->check('Auth.User') && $this->Auth->user('change_pw') && (!in_array($this->request->here, array('/users/terms', '/users/change_pw', '/users/logout', '/users/login')))) {
-		    $this->redirect(array('controller' => 'users', 'action' => 'change_pw', 'admin' => false));
+			$this->redirect(array('controller' => 'users', 'action' => 'change_pw', 'admin' => false));
 		}
 
 		// We don't want to run these role checks before the user is logged in, but we want them available for every view once the user is logged on
@@ -233,34 +239,34 @@ class AppController extends Controller {
 	}
 
 	// @TODO: update to new sharing model
-    protected function _isInMySharingGroup($event_id){
-    	return false;
-        $org = ClassRegistry::init('Organisation')->read(null, $this->Auth->user('organisation_id'));
-        $e = ClassRegistry::init('Event')->find('first', array(
-            'joins' => array(
-                array(
-                    'table' => 'events_sharing_groups',
-                    'alias' => 'EventsSharingGroup',
-                    'type' => 'inner',
-                    'conditions'=> array('EventsSharingGroup.event_id = Event.id')
-                ),
-                array(
-                    'table' => 'sharing_groups',
-                    'alias' => 'SharingGroup',
-                    'type' => 'inner',
-                    'conditions'=> array(
-                        'SharingGroup.id = EventsSharingGroup.sharing_group_id',
-                        'SharingGroup.id' => Set::extract('/SharingGroup/id', $org)
-                        )
-                )
-            ),
-            'conditions' => array(
-                'Event.id' => $event_id
-            )
-        ));
-        if(!empty($e)) return true;
-        return false;
-    }
+	protected function _isInMySharingGroup($event_id){
+		return false;
+		$org = ClassRegistry::init('Organisation')->read(null, $this->Auth->user('organisation_id'));
+		$e = ClassRegistry::init('Event')->find('first', array(
+			'joins' => array(
+				array(
+					'table' => 'events_sharing_groups',
+					'alias' => 'EventsSharingGroup',
+					'type' => 'inner',
+					'conditions'=> array('EventsSharingGroup.event_id = Event.id')
+				),
+				array(
+					'table' => 'sharing_groups',
+					'alias' => 'SharingGroup',
+					'type' => 'inner',
+					'conditions'=> array(
+						'SharingGroup.id = EventsSharingGroup.sharing_group_id',
+						'SharingGroup.id' => Set::extract('/SharingGroup/id', $org)
+						)
+				)
+			),
+			'conditions' => array(
+				'Event.id' => $event_id
+			)
+		));
+		if(!empty($e)) return true;
+		return false;
+	}
 
 /**
  * Refreshes the Auth session with new/updated data
