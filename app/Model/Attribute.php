@@ -613,7 +613,7 @@ class Attribute extends AppModel {
 				break;
 			case 'hostname':
 			case 'domain':
-				if (preg_match("#^[A-Z0-9.-_]+\.[A-Z]{2,4}$#i", $value)) {
+				if (preg_match("#^[A-Z0-9\._-]+\.[A-Z]{2,4}$#i", $value)) {
 					$returnValue = true;
 				} else {
 					$returnValue = 'Domain name has invalid format. Please double check the value or select "other" for a type.';
