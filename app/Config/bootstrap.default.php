@@ -236,3 +236,12 @@ CakePlugin::loadAll(array(
 	'CakeResque' => array('bootstrap' => true)
 ));
 */
+
+Configure::write('Proxy', array(
+    'enabled' => false,  //If false, disable proxy
+    'host' => '1.2.3.4',
+    'port' => 3128,
+    'method' => 'Basic',  //If empty, disable proxy authentication
+    'user' => 'michael',
+    'password' => 'secret',
+));
