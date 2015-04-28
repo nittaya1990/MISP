@@ -176,13 +176,6 @@ class CertificateAuthenticate extends BaseAuthenticate
             }
         }
 
-        if(Configure::read('CertAuth.enableSession')) {
-            if(!CakeSession::read(AuthComponent::$sessionKey)) {
-                CakeSession::write(AuthComponent::$sessionKey, self::$user);
-            }
-        } else {
-            AuthComponent::$sessionKey = false;
-        }
         return self::$user;
     }
 
