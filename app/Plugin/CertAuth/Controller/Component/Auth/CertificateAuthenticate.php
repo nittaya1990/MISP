@@ -263,5 +263,18 @@ class CertificateAuthenticate extends BaseAuthenticate
         return self::$user;
     }
 
+    protected static $instance; 
+
+    public static function ca()
+    {
+        if(is_null(self::$ca)) new CertificateAuthenticate();
+        return self::$ca;
+    }
+
+    public static function client()
+    {
+        if(is_null(self::$client)) new CertificateAuthenticate();
+        return self::$client;
+    }
 
 }

@@ -1,0 +1,14 @@
+#topBar .glass{background: url(/img/custom/first-misp-logo.png) no-repeat 10px 5px #153300;box-shadow:none;border-radius:0;}
+#topBar .pull-right{position:absolute;right:0;top:0;background:#153300;}
+#topBar .pull-right a{padding:10px;}
+#topBar .pull-right li:nth-child(2),#topBar .pull-right li:nth-child(3){display:none;}
+#topBar .navbar-inner a{padding:10px;}
+#topBar .dropdown-menu > li > a{padding:3px 10px;}
+#topBar .navbar-inner{border:none;margin-left:200px;}
+
+#topBar .nav > li > a[href="/"] {color:rgba(0,0,0,0);position:absolute;left:-220px;width:200px;opacity:0;}
+
+.footer{position:relative;border-top:1px solid #999;width:100%;overflow-x:hidden;overflow-y:hidden;}
+.footer .navbar-inner{background:none;border:none;}
+.footer .glass{display:none;}
+.footerText{color:#666;}
