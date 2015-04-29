@@ -1,4 +1,4 @@
-#topBar .glass{background: url(/img/custom/first-misp-logo.png) no-repeat 10px 5px #153300;box-shadow:none;border-radius:0;}
+#topBar .glass{background: url(/img/custom/first-misp-beta.png) no-repeat 10px 0px #153300;box-shadow:none;border-radius:0;}
 #topBar .pull-right{position:absolute;right:0;top:0;background:#153300;}
 #topBar .pull-right a{padding:10px;}
 #topBar .pull-right li:nth-child(2),#topBar .pull-right li:nth-child(3){display:none;}
