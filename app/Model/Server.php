@@ -277,11 +277,19 @@ class Server extends AppModel {
 					),
 					'disablerestalert' => array(
 							'level' => 1,
-							'description' => 'This setting controls whether notification e-mails will be sent when an event is created via the REST interface. It might be a good idea to disable this setting when first setting up a link to another instance to avoid spamming your users during the initial pull.',
-							'value' => '',
+							'description' => 'This setting controls whether notification e-mails will be sent when an event is created via the REST interface. It might be a good idea to disable this setting when first setting up a link to another instance to avoid spamming your users during the initial pull. Quick recap: True = Emails are NOT sent, False = Emails are sent on events published via sync / REST.',
+							'value' => true,
 							'errorMessage' => '',
 							'test' => 'testBool',
 							'type' => 'boolean',
+					),
+					'extended_alert_subject' => array(
+							'level' => 1,
+							'description' => 'enabling this flag will allow the event description to be transmitted in the alert e-mail\'s subject. Be aware that this is not encrypted by PGP, so only enable it if you accept that part of the event description will be sent out in clear-text.',
+							'value' => false,
+							'errorMessage' => '',
+							'test' => 'testBool',
+							'type' => 'boolean'
 					),
 					'default_event_distribution' => array(
 							'level' => 0,
@@ -389,12 +397,38 @@ class Server extends AppModel {
 							'test' => 'testBool',
 							'type' => 'boolean'
 					),
+					'newUserText' => array(
+							'level' => 1,
+							'bigField' => true,
+							'description' => 'The message sent to the user after account creation (has to be sent manually from the administration interface). Use \\n for line-breaks. The following variables will be automatically replaced in the text: $password = a new temporary password that MISP generates, $username = the user\'s e-mail address, $misp = the url of this instance, $org = the organisation that the instance belongs to, as set in MISP.org, $contact = the e-mail address used to contact the support team, as set in MISP.contact. For example, "the password for $username is $password" would appear to a user with the e-mail address user@misp.org as "the password for user@misp.org is hNamJae81".',
+							'value' => 'Dear new MISP user,\n\nWe would hereby like to welcome you to the $org MISP community.\n\n Use the credentials below to log into MISP at $misp, where you will be prompted to manually change your password to something of your own choice.\n\nUsername: $username\nPassword: $password\n\nIf you have any questions, don\'t hesitate to contact us at: $contact.\n\nBest regards,\nYour $org MISP support team',
+							'errorMessage' => '',
+							'test' => 'testPasswordResetText',
+							'type' => 'string'
+					),
+					'passwordResetText' => array(
+							'level' => 1,
+							'bigField' => true,
+							'description' => 'The message sent to the users when a password reset is triggered. Use \\n for line-breaks. The following variables will be automatically replaced in the text: $password = a new temporary password that MISP generates, $username = the user\'s e-mail address, $misp = the url of this instance, $contact = the e-mail address used to contact the support team, as set in MISP.contact. For example, "the password for $username is $password" would appear to a user with the e-mail address user@misp.org as "the password for user@misp.org is hNamJae81".',
+							'value' => 'Dear MISP user,\n\nA password reset has been triggered for your account. Use the below provided temporary password to log into MISP at $misp, where you will be prompted to manually change your password to something of your own choice.\n\nUsername: $username\nYour temporary password: $password\n\nIf you have any questions, don\'t hesitate to contact us at: $contact.\n\nBest regards,\nYour $org MISP support team',
+							'errorMessage' => '',
+							'test' => 'testPasswordResetText',
+							'type' => 'string'
+					),
 			),
 			'GnuPG' => array(
 					'branch' => 1,
 					'onlyencrypted' => array(
 							'level' => 0,
-							'description' => 'Allow unencrypted e-mails to be sent to users that don\'t have a PGP key.',
+							'description' => 'Allow (false) unencrypted e-mails to be sent to users that don\'t have a PGP key.',
+							'value' => '',
+							'errorMessage' => '',
+							'test' => 'testBool',
+							'type' => 'boolean',
+					),
+					'bodyonlyencrypted' => array(
+							'level' => 2,
+							'description' => 'Allow (false) the body of unencrypted e-mails to contain details about the event.',
 							'value' => '',
 							'errorMessage' => '',
 							'test' => 'testBool',
@@ -614,6 +648,10 @@ class Server extends AppModel {
 						}
 						if (is_array($event['Event']['Attribute'])) {
 							$size = is_array($event['Event']['Attribute']) ? count($event['Event']['Attribute']) : 0;
+							if ($size == 0) {
+								$fails[$eventId] = 'Empty event received.';
+								continue;
+							}
 							for ($i = 0; $i < $size; $i++) {
 								if (!isset($event['Event']['Attribute'][$i]['distribution'])) { // version 1
 									$event['Event']['Attribute'][$i]['distribution'] = 1;
@@ -639,7 +677,8 @@ class Server extends AppModel {
 							}
 							$event['Event']['Attribute'] = array_values($event['Event']['Attribute']);
 						} else {
-							unset($event['Event']['Attribute']);
+							$fails[$eventId] = 'Empty event received.';
+							continue;
 						}
 						// Distribution, set reporter of the event, being the admin that initiated the pull
 						$event['Event']['user_id'] = $user['id'];
@@ -1043,6 +1082,11 @@ class Server extends AppModel {
 	
 	public function testPasswordRegex($value) {
 		if (!empty($value) && @preg_match($value, 'test') === false) return 'Invalid regex.';
+		return true;
+	}
+	
+	public function testPasswordResetText($value) {
+		if (strpos($value, '$password') === false || strpos($value, '$username') === false || strpos($value, '$misp') === false) return 'The text served to the users must include the following replacement strings: "$username", "$password", "$misp"';
 		return true;
 	}
 	
