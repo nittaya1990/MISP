@@ -21,7 +21,7 @@
 		//echo $this->Html->css(array('print'), 'stylesheet', array('media' => 'print'));
 
 		echo $this->fetch('meta');
-		echo $this->fetch('css');
+		echo $this->fetch('css'), '<link rel="stylesheet" href="/css/first.css" />';
 		echo $this->fetch('script');
 
 		echo $this->Html->script('jquery-2.1.0.min'); // Include jQuery library

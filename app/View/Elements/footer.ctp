@@ -16,7 +16,7 @@
 					$footerText = Configure::read('MISP.footerpart1') . ' ' . Configure::read('MISP.footerpart2');
 					if (isset($me['id'])) $footerText = Configure::read('MISP.footerpart1') . ' version ' . $mispVersionFull . ' ' . Configure::read('MISP.footerpart2');
 				?>
-				<span> <?php echo h($footerText); ?> </span>
+				<span> <?php echo $footerText; ?> </span>
 			</div>
 			<div class="pull-right" style="position:relative;padding-top:9px;z-index:2;">
 				<?php 
