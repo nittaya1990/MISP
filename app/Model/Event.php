@@ -129,7 +129,7 @@ class Event extends AppModel {
 	 			'threat_level_id' => 'event_threat_level_id', 
 	 			'analysis' => 'event_analysis', 
 	 			'date' => 'event_date', 
-	 	);
+	 );
 	
 /**
  * Validation rules
@@ -138,23 +138,13 @@ class Event extends AppModel {
  */
 	public $validate = array(
 		'org' => array(
-			'notempty' => array(
-				'rule' => array('notempty'),
-				//'message' => 'Your custom message here',
-				//'allowEmpty' => false,
-				//'required' => false,
-				//'last' => false, // Stop validation after this rule
-				//'on' => 'create', // Limit validation to 'create' or 'update' operations
+			'valueNotEmpty' => array(
+				'rule' => array('valueNotEmpty'),
 			),
 		),
 		'orgc' => array(
-			'notempty' => array(
-				'rule' => array('notempty'),
-				//'message' => 'Your custom message here',
-				//'allowEmpty' => false,
-				//'required' => false,
-				//'last' => false, // Stop validation after this rule
-				//'on' => 'create', // Limit validation to 'create' or 'update' operations
+			'valueNotEmpty' => array(
+				'rule' => array('valueNotEmpty'),
 			),
 		),
 		'date' => array(
@@ -168,11 +158,9 @@ class Event extends AppModel {
 			),
 		),
 		'threat_level_id' => array(
-			'notempty' => array(
-				'rule' => array('notempty'),
-				//'message' => 'Please specify threat level',
-				'required' => true
-			),
+			'rule' => array('inList', array('1', '2', '3', '4')),
+			'message' => 'Options : 1, 2, 3, 4 (for High, Medium, Low, Undefined)',
+			'required' => true
 		),
 
 		'distribution' => array(
@@ -186,20 +174,15 @@ class Event extends AppModel {
 		),
 		'analysis' => array(
 			'rule' => array('inList', array('0', '1', '2')),
-				'message' => 'Options : 0, 1, 2',
+				'message' => 'Options : 0, 1, 2 (for Initial, Ongoing, Completed)',
 				//'allowEmpty' => false,
 				'required' => true,
 				//'last' => false, // Stop validation after this rule
 				//'on' => 'create', // Limit validation to 'create' or 'update' operations
 		),
 		'info' => array(
-			'notempty' => array(
-				'rule' => array('notempty'),
-				//'message' => 'Your custom message here',
-				//'allowEmpty' => false,
-				//'required' => false,
-				//'last' => false, // Stop validation after this rule
-				//'on' => 'create', // Limit validation to 'create' or 'update' operations
+			'valueNotEmpty' => array(
+				'rule' => array('valueNotEmpty'),
 			),
 		),
 		'user_id' => array(
@@ -323,19 +306,24 @@ class Event extends AppModel {
 		),
 		'EventTag' => array(
 				'className' => 'EventTag',
+				'dependent' => true,
 		)
 	);
 
 	public function beforeDelete($cascade = true) {
-		// delete event from the disk
-		$this->read();	// first read the event from the db
+		// blacklist the event UUID if the feature is enabled
+		if (Configure::read('MISP.enableEventBlacklisting')) {
+			$this->EventBlacklist = ClassRegistry::init('EventBlacklist');
+			$this->EventBlacklist->create();
+			$this->EventBlacklist->save(array('event_uuid' => $this->data['Event']['uuid'], 'event_info' => $this->data['Event']['info'], 'event_orgc' => $this->data['Event']['orgc']));
+		}
 		
 		// delete all of the event->tag combinations that involve the deleted event
 		$this->EventTag->deleteAll(array('event_id' => $this->id));
 		
 		// FIXME secure this filesystem access/delete by not allowing to change directories or go outside of the directory container.
 		// only delete the file if it exists
-		$filepath = APP . "files" . DS . $this->data['Event']['id'];
+		$filepath = APP . "files" . DS . $this->id;
 		App::uses('Folder', 'Utility');
 		$file = new Folder ($filepath);
 		if (is_dir($filepath)) {
@@ -377,7 +365,7 @@ class Event extends AppModel {
 
 		// generate UUID if it doesn't exist
 		if (empty($this->data['Event']['uuid'])) {
-			$this->data['Event']['uuid'] = String::uuid();
+			$this->data['Event']['uuid'] = $this->generateUuid();
 		}
 		// generate timestamp if it doesn't exist
 		if (empty($this->data['Event']['timestamp'])) {
@@ -575,7 +563,8 @@ class Event extends AppModel {
 			$event['Event']['Attribute'] = $event['Attribute'];
 			unset($event['Attribute']);
 		}
-
+		if (isset($event['ShadowAttribute'])) unset($event['ShadowAttribute']);
+		
 		// cleanup the array from things we do not want to expose
 		//unset($event['Event']['org']);
 		// remove value1 and value2 from the output
@@ -616,10 +605,10 @@ class Event extends AppModel {
 		}
 		// display the XML to the user
 		$xmlArray['Event'][] = $event['Event'];
-		$xmlObject = Xml::fromArray($xmlArray, array('format' => 'tags'));
-		$eventsXml = $xmlObject->asXML();
-		// do a REST POST request with the server
-		$data = $eventsXml;
+		
+		App::uses('XMLConverterTool', 'Tools');
+		$converter = new XMLConverterTool();
+		$data = '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL . $converter->event2XML($event) . PHP_EOL;
 		
 		// LATER validate HTTPS SSL certificate
 		$this->Dns = ClassRegistry::init('Dns');
@@ -786,19 +775,21 @@ class Event extends AppModel {
 				}
 				$eventIds = array();
 				if ($all) {
-					foreach ($eventArray['response']['Event'] as $event) {
+					if (isset($eventArray['response']['Event']) && !empty($eventArray['response']['Event'])) foreach ($eventArray['response']['Event'] as $event) {
 						$eventIds[] = $event['uuid'];
 					}
 				} else {
 					// multiple events, iterate over the array
-					foreach ($eventArray['response']['Event'] as &$event) {
-						if (1 != $event['published']) {
-							continue; // do not keep non-published events
-						}
-						// get rid of events that are the same timestamp as ours or older, we don't want to transfer the attributes for those
-						// The event's timestamp also matches the newest attribute timestamp by default
-						if ($this->checkIfNewer($event)) {
-							$eventIds[] = $event['id'];
+					if (isset($eventArray['response']['Event']) && !empty($eventArray['response']['Event'])) {
+						foreach ($eventArray['response']['Event'] as &$event) {
+							if (1 != $event['published']) {
+								continue; // do not keep non-published events
+							}
+							// get rid of events that are the same timestamp as ours or older, we don't want to transfer the attributes for those
+							// The event's timestamp also matches the newest attribute timestamp by default
+							if ($this->checkIfNewer($event)) {
+								$eventIds[] = $event['id'];
+							}
 						}
 					}
 				}
@@ -948,13 +939,13 @@ class Event extends AppModel {
 		}
 		return $results;
 	}
-	public function csv($org, $isSiteAdmin, $eventid=false, $ignore=false, $attributeIDList = array(), $tags = false, $category = false, $type = false, $includeContext = false, $from = false, $to = false, $last) {
+	public function csv($org, $isSiteAdmin, $eventid=false, $ignore=false, $attributeIDList = array(), $tags = false, $category = false, $type = false, $includeContext = false, $from = false, $to = false, $last = false) {
 		$final = array();
 		$attributeList = array();
 		$conditions = array();
 	 	$econditions = array();
 	 	$this->recursive = -1;
-	 	
+
 	 	// If we are not in the search result csv download function then we need to check what can be downloaded. CSV downloads are already filtered by the search function.
 	 	if ($eventid !== 'search') {
 	 		if ($from) $econditions['AND'][] = array('Event.date >=' => $from);
@@ -974,7 +965,7 @@ class Event extends AppModel {
 	 		if (!$eventid) {
 	 			$this->recursive = -1;
 	 			// If we sent any tags along, load the associated tag names for each attribute
-	 			if (!$tags) {
+	 			if ($tags) {
 	 				$tag = ClassRegistry::init('Tag');
 	 				$args = $this->Attribute->dissectArgs($tags);
 	 				$tagArray = $tag->fetchEventTagIds($args[0], $args[1]);
@@ -982,7 +973,7 @@ class Event extends AppModel {
 	 				foreach ($tagArray[0] as $accepted) {
 	 					$temp['OR'][] = array('Event.id' => $accepted);
 	 				}
-	 				$conditions['AND'][] = $temp;
+	 				$econditions['AND'][] = $temp;
 	 				$temp = array();
 	 				foreach ($tagArray[1] as $rejected) {
 	 					$temp['AND'][] = array('Event.id !=' => $rejected);
@@ -1023,13 +1014,14 @@ class Event extends AppModel {
 	 	}
 	 	$params = array(
 	 			'conditions' => $conditions, //array of conditions
-	 			'fields' => array('Attribute.event_id', 'Attribute.distribution', 'Attribute.category', 'Attribute.type', 'Attribute.value', 'Attribute.uuid', 'Attribute.to_ids', 'Attribute.timestamp'),
+	 			'fields' => array('Attribute.event_id', 'Attribute.distribution', 'Attribute.category', 'Attribute.type', 'Attribute.value', 'Attribute.comment', 'Attribute.uuid', 'Attribute.to_ids', 'Attribute.timestamp'),
 	 	);
 	 	$attributes = $this->Attribute->find('all', $params);
 	 	foreach ($attributes as &$attribute) {
-	 		$attribute['Attribute']['value'] = str_replace(array("\r\n", "\n", "\r"), "", $attribute['Attribute']['value']);
 	 		$attribute['Attribute']['value'] = str_replace(array('"'), '""', $attribute['Attribute']['value']);
 	 		$attribute['Attribute']['value'] = '"' . $attribute['Attribute']['value'] . '"';
+	 		$attribute['Attribute']['comment'] = str_replace(array('"'), '""', $attribute['Attribute']['comment']);
+	 		$attribute['Attribute']['comment'] = '"' . $attribute['Attribute']['comment'] . '"';
 	 		$attribute['Attribute']['timestamp'] = date('Ymd', $attribute['Attribute']['timestamp']);
 	 	}
 	 	if ($includeContext) $attributes = $this->attachEventInfoToAttributes($attributes, $isSiteAdmin);
@@ -1037,7 +1029,7 @@ class Event extends AppModel {
 	 }
 	 
 	 private function attachEventInfoToAttributes($attributes, $isSiteAdmin) {
-	 	$TLs = $this->ThreatLevel->find('all', array(
+	 	$TLs = $this->ThreatLevel->find('list', array(
 	 		'recursive' => -1,
 	 	));
 	 	$event_ids = array();
@@ -1068,11 +1060,14 @@ class Event extends AppModel {
 	 	foreach ($attributes as &$attribute) {
 	 		foreach ($context_fields as $field => $header_name) {
 	 			if ($header_name == 'event_threat_level_id') {
-	 				$attribute['Attribute'][$header_name] = $TLs[$event_id_data[$attribute['Attribute']['event_id']][$header_name]]['ThreatLevel']['name'];
+	 				$attribute['Attribute'][$header_name] = $TLs[$event_id_data[$attribute['Attribute']['event_id']][$header_name]];
 	 			} else if ($header_name == 'event_distribution') {
 	 				$attribute['Attribute'][$header_name] = $this->distributionLevels[$event_id_data[$attribute['Attribute']['event_id']][$header_name]];
 	 			} else if ($header_name == 'event_analysis') {
 	 				$attribute['Attribute'][$header_name] = $this->analysisLevels[$event_id_data[$attribute['Attribute']['event_id']][$header_name]];
+	 			} else if ($header_name == 'event_info') {
+	 				$attribute['Attribute'][$header_name] = str_replace(array('"'), '""', $event_id_data[$attribute['Attribute']['event_id']][$header_name]);
+	 				$attribute['Attribute'][$header_name] = '"' . $attribute['Attribute'][$header_name] . '"';
 	 			} else {
 	 				$attribute['Attribute'][$header_name] = $event_id_data[$attribute['Attribute']['event_id']][$header_name];
 	 			}
@@ -1306,6 +1301,16 @@ class Event extends AppModel {
 	public function _add(&$data, $fromXml, $user, $org='', $passAlong = null, $fromPull = false, $jobId = null) {
 		if ($jobId) {
 			App::import('Component','Auth');
+		}
+		if (Configure::read('MISP.enableEventBlacklisting') && isset($data['Event']['uuid'])) {
+			$event = $this->find('first', array(
+					'recursive' => -1,
+					'fields' => array('uuid'),
+					'conditions' => array('id' => $this->id),
+			));
+			$this->EventBlacklist = ClassRegistry::init('EventBlacklist');
+			$r = $this->EventBlacklist->find('first', array('conditions' => array('event_uuid' => $data['Event']['uuid'])));
+			if (!empty($r))	return 'blocked';
 		}
 		$this->create();
 		// force check userid and orgname to be from yourself
@@ -1739,7 +1744,7 @@ class Event extends AppModel {
 		return false;
 	}
 	
-	public function stix($id, $tags, $attachments, $org, $isSiteAdmin, $returnType, $from, $to, $last) {
+	public function stix($id, $tags, $attachments, $org, $isSiteAdmin, $returnType, $from = false, $to = false, $last = false) {
 		$eventIDs = $this->Attribute->dissectArgs($id);
 		$tagIDs = $this->Attribute->dissectArgs($tags);
 		$idList = $this->getAccessibleEventIds($eventIDs[0], $eventIDs[1], $tagIDs[0], $tagIDs[1]);
@@ -1755,6 +1760,11 @@ class Event extends AppModel {
 				}
 			}
 		}
+                if (Configure::read('MISP.tagging')) {
+			foreach ($events as &$event) {
+				$event['Tag'] = $this->EventTag->Tag->findEventTags($event['Event']['id']);
+                        }
+                }
 		// generate a randomised filename for the temporary file that will be passed to the python script
 		$randomFileName = $this->generateRandomFileName();
 		$tempFile = new File (APP . "files" . DS . "scripts" . DS . "tmp" . DS . $randomFileName, true, 0644);

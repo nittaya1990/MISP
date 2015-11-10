@@ -107,7 +107,6 @@
 					<li <?php if ($menuItem === 'edit') echo 'class="active"';?>><?php echo $this->Html->link(__('Edit User', true), array('action' => 'edit', $user['User']['id'])); ?></li>
 					<li class="divider"></li>
 					<?php endif; ?>
-					<li <?php if ($menuItem === 'news') echo 'class="active"';?>><a href="/users/news">News</a></li>
 					<li <?php if ($menuItem === 'view') echo 'class="active"';?>><a href="/users/view/me">My Profile</a></li>
 					<li <?php if ($menuItem === 'members') echo 'class="active"';?>><a href="/users/memberslist">Members List</a></li>
 					<li <?php if ($menuItem === 'roles') echo 'class="active"';?>><a href="/roles/index">Role Permissions</a></li>
@@ -163,6 +162,10 @@
 							<li class="divider"></li>
 							<li <?php if ($menuItem === 'tasks') echo 'class="active"';?>><a href="/tasks">Scheduled Tasks</a></li>
 						<?php endif; 
+						if (Configure::read('MISP.enableEventBlacklisting')): ?>
+							<li <?php if ($menuItem === 'eventBlacklistsAdd') echo 'class="active"';?>><a href="/eventBlacklists/add">Blacklists Event</a></li>		
+							<li <?php if ($menuItem === 'eventBlacklists') echo 'class="active"';?>><a href="/eventBlacklists">Manage Event Blacklists</a></li>
+						<?php endif;
 					endif;
 				break;	
 				

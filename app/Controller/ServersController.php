@@ -66,7 +66,7 @@ class ServersController extends AppController {
 			// force check userid and orgname to be from yourself
 			$this->request->data['Server']['org'] = $this->Auth->user('org');
 			if ($this->Server->save($this->request->data)) {
-				if (isset($this->request->data['Server']['submitted_cert'])) {
+				if ($this->request->data['Server']['submitted_cert']['error'] == 0) {
 					$this->__saveCert($this->request->data, $this->Server->id);
 				}
 				$this->Session->setFlash(__('The server has been saved'));
@@ -267,7 +267,7 @@ class ServersController extends AppController {
 		$file = new File($server['Server']['submitted_cert']['name']);
 		$ext = $file->ext();
 		if (($ext != 'pem') || !$server['Server']['submitted_cert']['size'] > 0) {
-			$this->Session->setFlash('Incorrect extension of empty file.');
+			$this->Session->setFlash('Incorrect extension or empty file.');
 			$this->redirect(array('action' => 'index'));
 		}
 		$pemData = fread(fopen($server['Server']['submitted_cert']['tmp_name'], "r"),
@@ -319,6 +319,7 @@ class ServersController extends AppController {
 			$stixOperational = array(0 => 'STIX or CyBox library not installed correctly', 1 => 'OK');
 			$stixVersion = array(0 => 'Incorrect STIX version installed, found $current, expecting $expected', 1 => 'OK');
 			$cyboxVersion = array(0 => 'Incorrect CyBox version installed, found $current, expecting $expected', 1 => 'OK');
+			$sessionErrors = array(0 => 'OK', 1 => 'High', 2 => 'Alternative setting used', 3 => 'Test failed');
 			
 			$finalSettings = $this->Server->serverSettingsRead();
 			$issues = array(	
@@ -380,7 +381,12 @@ class ServersController extends AppController {
 				// if Proxy is set up in the settings, try to connect to a test URL
 				$proxyStatus = $this->Server->proxyDiagnostics($diagnostic_errors);
 				
-				$additionalViewVars = array('gpgStatus', 'proxyStatus', 'zmqStatus', 'stixVersion', 'cyboxVersion','gpgErrors', 'proxyErrors', 'zmqErrors', 'stixOperational', 'stix');
+				// check the size of the session table
+				$sessionCount = 0;
+				$sessionStatus = $this->Server->sessionDiagnostics($diagnostic_errors, $sessionCount);
+				$this->set('sessionCount', $sessionCount);
+				
+				$additionalViewVars = array('gpgStatus', 'sessionErrors', 'proxyStatus', 'sessionStatus', 'zmqStatus', 'stixVersion', 'cyboxVersion','gpgErrors', 'proxyErrors', 'zmqErrors', 'stixOperational', 'stix');
 			}
 			// check whether the files are writeable
 			$writeableDirs = $this->Server->writeableDirsDiagnostics($diagnostic_errors);
@@ -390,31 +396,10 @@ class ServersController extends AppController {
 			);
 			$viewVars = array_merge($viewVars, $additionalViewVars);
 			foreach ($viewVars as $viewVar) $this->set($viewVar, ${$viewVar});
-			
+
+			$workerIssueCount = 0;
 			if (Configure::read('MISP.background_jobs')) {
-				$worker_array = array(
-					'cache' => array(),
-					'default' => array(),
-					'email' => array(),
-					'_schdlr_' => array()
-				);
-				// disable notice errors, getWorkers() is meant to be run from the command line and throws a notice
-				// because STDIN is not defined - since we don't actually log anything this is safe to ignore.
-				$error_reporting = error_reporting();
-				error_reporting(0);
-				$results = CakeResque::getWorkers();
-				error_reporting($error_reporting);
-				foreach ($results as $result) {
-					$result = (array)$result;
-					if (in_array($result["\0*\0queues"][0], array_keys($worker_array))) {
-						$worker_array[$result["\0*\0queues"][0]][] = $result["\0*\0id"];
-					}
-				}
-				$workerIssueCount = 0;
-				foreach ($worker_array as $k => $queue) {
-					if (empty($queue)) $workerIssueCount++;
-				}
-				$this->set('worker_array', $worker_array);
+				$this->set('worker_array', $this->Server->workerDiagnostics($workerIssueCount));
 			} else {
 				$workerIssueCount = 4;
 				$this->set('worker_array', array());
@@ -436,6 +421,21 @@ class ServersController extends AppController {
 			$priorityErrorColours = array(0 => 'red', 1 => 'yellow', 2 => 'green');
 			$this->set('priorityErrorColours', $priorityErrorColours);
 		}
+	}
+
+	public function startWorker($type) {
+		if (!$this->_isSiteAdmin() || !$this->request->is('Post')) throw new MethodNotAllowedException();
+		$validTypes = array('default', 'email', 'scheduler', 'cache');
+		if (!in_array($type, $validTypes)) throw new MethodNotAllowedException('Invalid worker type.');
+		if ($type != 'scheduler') shell_exec(APP . 'Console' . DS . 'cake ' . DS . 'CakeResque.CakeResque start --interval 5 --queue ' . $type .' > /dev/null 2>&1 &');
+		else shell_exec(APP . 'Console' . DS . 'cake ' . DS . 'CakeResque.CakeResque startscheduler -i 5 > /dev/null 2>&1 &');
+		$this->redirect('/servers/serverSettings/workers');
+	}
+	
+	public function stopWorker($pid) {
+		if (!$this->_isSiteAdmin() || !$this->request->is('Post')) throw new MethodNotAllowedException();
+		$this->Server->killWorker($pid, $this->Auth->user());
+		$this->redirect('/servers/serverSettings/workers');
 	}
 	
 	private function __checkVersion() {
@@ -460,9 +460,8 @@ class ServersController extends AppController {
 		} else {
 			return false;
 		}
-
 	}
-	
+
 	public function serverSettingsEdit($setting, $id, $forceSave = false) {
 		if (!$this->_isSiteAdmin()) throw new MethodNotAllowedException();
 		if (!isset($setting) || !isset($id)) throw new MethodNotAllowedException();
@@ -500,7 +499,7 @@ class ServersController extends AppController {
 			$this->loadModel('Log');
 			if (isset($found['beforeHook'])) {
 				$beforeResult = call_user_func_array(array($this->Server, $found['beforeHook']), array($setting, $this->request->data['Server']['value']));
-				if ($afterResult !== true) {
+				if ($beforeResult !== true) {
 					$this->Log->create();
 					$result = $this->Log->save(array(
 							'org' => $this->Auth->user('org'),
@@ -564,8 +563,9 @@ class ServersController extends AppController {
 	}
 	
 	public function restartWorkers() {
-		if (!$this->_isSiteAdmin()) throw new MethodNotAllowedException();
-		shell_exec(APP . 'Console' . DS . 'worker' . DS . 'start.sh > /dev/null &');
+		if (!$this->_isSiteAdmin() || !$this->request->is('post')) throw new MethodNotAllowedException();
+		$this->Server->workerRemoveDead($this->Auth->user());
+		shell_exec(APP . 'Console' . DS . 'worker' . DS . 'start.sh > /dev/null 2>&1 &');
 		$this->redirect(array('controller' => 'servers', 'action' => 'serverSettings', 'workers'));
 	}
 	
@@ -647,7 +647,8 @@ class ServersController extends AppController {
 		else return new CakeResponse(array('body'=> json_encode(array('saved' => false, 'errors' => 'Could not kill the previous instance of the ZeroMQ script.')),'status'=>200));
 	}
 	
-	public function statusZeroMQServer() {
+	private function statusZeroMQServer() {
+		if (!$this->_isSiteAdmin()) throw new MethodNotAllowedException();
 		App::uses('PubSubTool', 'Tools');
 		$pubSubTool = new PubSubTool();
 		$result = $pubSubTool->statusCheck();
@@ -657,5 +658,20 @@ class ServersController extends AppController {
 			$this->set('time2', date('Y/m/d H:i:s', $result['timestampSettings']));
 		}		
 		$this->render('ajax/zeromqstatus');
+	}
+	
+	public function purgeSessions() {
+		if (!$this->_isSiteAdmin()) throw new MethodNotAllowedException();
+		if ($this->Server->updateDatabase('cleanSessionTable') == false) {
+			$this->Session->setFlash('Could not purge the session table.');
+		}
+		$this->redirect('/servers/serverSettings/diagnostics');
+	}
+	
+	public function getVersion() {
+		if (!$this->userRole['perm_auth']) throw new MethodNotAllowedException('This action requires API access.');
+		$versionArray = $this->Server->checkMISPVersion();
+		$this->set('response', array('version' => $versionArray['major'] . '.' . $versionArray['minor'] . '.' . $versionArray['hotfix']));
+		$this->set('_serialize', 'response');
 	}
 }

@@ -69,7 +69,7 @@ class AppController extends Controller {
 				),
 				'authError' => 'Unauthorised access.',
 				'loginRedirect' => array('controller' => 'users', 'action' => 'routeafterlogin'),
-				'logoutRedirect' => array('controller' => 'users', 'action' => 'login'),
+				'logoutRedirect' => array('controller' => 'users', 'action' => 'login', 'admin' => false),
 				//'authorize' => array('Controller', // Added this line
 				//'Actions' => array('actionPath' => 'controllers')) // TODO ACL, 4: tell actionPath
 				),
@@ -79,6 +79,8 @@ class AppController extends Controller {
 	public $mispVersion = '2.3.0';
 	
 	public function beforeFilter() {
+		$versionArray = $this->{$this->modelClass}->checkMISPVersion();
+		$this->mispVersionFull = implode('.', array_values($versionArray));
 		$this->Security->blackHoleCallback = 'blackHole';
 		// send users away that are using ancient versions of IE
 		// Make sure to update this if IE 20 comes out :)
@@ -105,17 +107,44 @@ class AppController extends Controller {
 					if ($user) {
 						unset($user['User']['gpgkey']);
 					    // User found in the db, add the user info to the session
+					    if (Configure::read('MISP.log_auth')) {
+							$this->Log = ClassRegistry::init('Log');
+							$this->Log->create();
+							$log = array(
+									'org' => $user['User']['org'],
+									'model' => 'User',
+									'model_id' => $user['User']['id'],
+									'email' => $user['User']['email'],
+									'action' => 'auth',
+									'title' => 'Successful authentication using API key',
+									'change' => 'HTTP method: ' . $_SERVER['REQUEST_METHOD'] . PHP_EOL . 'Target: ' . $this->here,
+							);
+							$this->Log->save($log);
+					    }
 					    $this->Session->renew();
-					    $this->Session->write(AuthComponent::$sessionKey, $user['User']);
+					    $this->Session->write(AuthComponent::$sessionKey, $user['User']);   
 					} else {
 						// User not authenticated correctly
 						// reset the session information
 						$this->Session->destroy();
-						throw new ForbiddenException('The authentication key provided cannot be used for syncing.');
+						$this->Log = ClassRegistry::init('Log');
+						$this->Log->create();
+						$log = array(
+								'org' => 'SYSTEM',
+								'model' => 'User',
+								'model_id' => 0,
+								'email' => 'SYSTEM',
+								'action' => 'auth_fail',
+								'title' => 'Failed authentication using API key (' . trim($auth_key) . ')',
+								'change' => null,
+						);
+						$this->Log->save($log);
+						throw new ForbiddenException('Authentication failed. Please make sure you pass the API key of an API enabled user along in the Authorization header.');
 					}
 					unset($user);
 				}
 			}
+			if ($this->Auth->user() == null) throw new ForbiddenException('Authentication failed. Please make sure you pass the API key of an API enabled user along in the Authorization header.');
 		} else if(!$this->Session->read(AuthComponent::$sessionKey)) {
 			// load authentication plugins from Configure::read('Security.auth')
 			$auth = Configure::read('Security.auth');
@@ -150,6 +179,7 @@ class AppController extends Controller {
 		if ($this->Auth->user()) {
 			//$this->_refreshAuth();
 			$this->set('mispVersion', $this->mispVersion);
+			$this->set('mispVersionFull', $this->mispVersionFull);
 			$role = $this->getActions();
 			$this->set('me', $this->Auth->user());
 			$this->set('isAdmin', $role['perm_admin']);
@@ -351,25 +381,73 @@ class AppController extends Controller {
 		$this->redirect(array('controller' => 'pages', 'action' => 'display', 'administration'));
 	}
 	
+	public function pruneDuplicateUUIDs() {
+		if (!$this->_isSiteAdmin()) throw new MethodNotAllowedException();
+		$this->LoadModel('Attribute');
+		$duplicates = $this->Attribute->find('all', array(
+			'fields' => array('Attribute.uuid', 'count(*) as occurance'),
+			'recursive' => -1,
+			'group' => array('Attribute.uuid HAVING COUNT(*) > 1'),
+		));
+		$counter = 0;
+		foreach ($duplicates as $duplicate) {
+			$attributes = $this->Attribute->find('all', array(
+				'recursive' => -1,
+				'conditions' => array('uuid' => $duplicate['Attribute']['uuid'])
+			));
+			foreach ($attributes as $k => $attribute) {
+				if ($k > 0) {
+					$attribute['Attribute']['uuid'] = String::uuid();
+					$this->Attribute->save($attribute);
+					$counter++;
+				}
+			}
+		}
+		$this->Server->updateDatabase('makeAttributeUUIDsUnique');
+		$this->Session->setFlash('Done. Assigned new UUIDs to ' . $counter . ' attribute(s).');
+		$this->redirect(array('controller' => 'pages', 'action' => 'display', 'administration'));
+	}
+	
+	public function removeDuplicateEvents() {
+		if (!$this->_isSiteAdmin()) throw new MethodNotAllowedException();
+		$this->LoadModel('Event');
+		$duplicates = $this->Event->find('all', array(
+				'fields' => array('Event.uuid', 'count(*) as occurance'),
+				'recursive' => -1,
+				'group' => array('Event.uuid HAVING COUNT(*) > 1'),
+		));
+		$counter = 0;
+		
+		// load this so we can remove the blacklist item that will be created, this is the one case when we do not want it.
+		if (Configure::read('MISP.enableEventBlacklisting')) $this->EventBlacklist = ClassRegistry::init('EventBlacklist');
+		
+		foreach ($duplicates as $duplicate) {
+			$events = $this->Event->find('all', array(
+					'recursive' => -1,
+					'conditions' => array('uuid' => $duplicate['Event']['uuid'])
+			));
+			foreach ($events as $k => $event) {
+				if ($k > 0) {
+					$uuid = $event['Event']['uuid'];
+					$this->Event->delete($event['Event']['id']);
+					$counter++;
+					// remove the blacklist entry that we just created with the event deletion, if the feature is enabled
+					// We do not want to block the UUID, since we just deleted a copy
+					if (Configure::read('MISP.enableEventBlacklisting')) {
+						$this->EventBlacklist->deleteAll(array('EventBlacklist.event_uuid' => $uuid));
+					}
+				}
+			}
+		}
+		$this->Server->updateDatabase('makeEventUUIDsUnique');
+		$this->Session->setFlash('Done. Removed ' . $counter . ' duplicate events.');
+		$this->redirect(array('controller' => 'pages', 'action' => 'display', 'administration'));
+	}
+	
 	public function updateDatabase($command) {
 		if (!$this->_isSiteAdmin()) throw new MethodNotAllowedException();
-		$sql = '';
-		switch ($command) {
-			case 'extendServerOrganizationLength':
-				$sql = 'ALTER TABLE `servers` MODIFY COLUMN `organization` varchar(255) NOT NULL;';
-				$controller = 'Servers';
-				break;
-			case 'convertLogFieldsToText':
-				$sql = 'ALTER TABLE `logs` MODIFY COLUMN `title` text, MODIFY COLUMN `change` text;';
-				$controller = 'Logs';
-				break;
-			default:
-				$this->Session->setFlash('Invalid command.');
-				$this->redirect(array('controller' => 'pages', 'action' => 'display', 'administration'));
-				break;
-		}
-		$this->loadModel($controller);
-		$this->$controller->query($sql);
+		$this->loadModel('Server');
+		$this->Server->updateDatabase($command);
 		$this->Session->setFlash('Done.');
 		$this->redirect(array('controller' => 'pages', 'action' => 'display', 'administration'));
 	}

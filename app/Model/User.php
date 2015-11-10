@@ -63,23 +63,13 @@ class User extends AppModel {
 			),
 		),
 		'org' => array(
-			'notempty' => array(
-				'rule' => array('notempty'),
-				'message' => 'Please specify the organisation where you are working.',
-				//'allowEmpty' => false,
-				//'required' => false,
-				//'last' => false, // Stop validation after this rule
-				//'on' => 'create', // Limit validation to 'create' or 'update' operations
+			'valueNotEmpty' => array(
+				'rule' => array('valueNotEmpty'),
 			),
 		),
 		'org_id' => array(
-			'notempty' => array(
-				'rule' => array('notempty'),
-				'message' => 'Please specify the organisation ID where you are working.',
-				//'allowEmpty' => false,
-				//'required' => false,
-				//'last' => false, // Stop validation after this rule
-				//'on' => 'create', // Limit validation to 'create' or 'update' operations
+			'valueNotEmpty' => array(
+				'rule' => array('valueNotEmpty'),
 			),
 		),
 		'email' => array(
@@ -122,13 +112,8 @@ class User extends AppModel {
 				'message' => 'A authkey of a minimum length of 40 is required.',
 				'required' => true,
 			),
-			'notempty' => array(
-				'rule' => array('notempty'),
-				//'message' => 'Your custom message here',
-				//'allowEmpty' => false,
-				//'required' => false,
-				//'last' => false, // Stop validation after this rule
-				//'on' => 'create', // Limit validation to 'create' or 'update' operations
+			'valueNotEmpty' => array(
+				'rule' => array('valueNotEmpty'),
 			),
 		),
 		'invited_by' => array(
@@ -152,13 +137,9 @@ class User extends AppModel {
 			),
 		),
 		'gpgkey' => array(
-			'notempty' => array(
+			'validateGpgKey' => array(
 				'rule' => array('validateGpgkey'),
 				'message' => 'GPG key not valid, please enter a valid key.',
-				//'allowEmpty' => false,
-				//'required' => false,
-				//'last' => false, // Stop validation after this rule
-				//'on' => 'create', // Limit validation to 'create' or 'update' operations
 			),
 		),
 		'nids_sid' => array(
@@ -402,11 +383,12 @@ class User extends AppModel {
 		));
 		foreach ($users as $k => $user) {
 			$gpg = new Crypt_GPG(array('homedir' => Configure::read('GnuPG.homedir'), 'binary' => (Configure::read('GnuPG.binary') ? Configure::read('GnuPG.binary') : '/usr/bin/gpg')));
-			$key = $gpg->importKey($user['User']['gpgkey']);
-			$gpg->addEncryptKey($key['fingerprint']); // use the key that was given in the import
 			try {
+				$key = $gpg->importKey($user['User']['gpgkey']);
+				$gpg->addEncryptKey($key['fingerprint']); // use the key that was given in the import
 				$enc = $gpg->encrypt('test', true);
 			} catch (Exception $e){
+				$results[$user['User']['id']][2] = $e->getMessage();
 				$results[$user['User']['id']][0] = true;
 			}
 			$results[$user['User']['id']][1] = $user['User']['email'];
@@ -526,8 +508,9 @@ class User extends AppModel {
 	}
 	
 	public function fetchPGPKey($email) {
-		App::uses('HttpSocket', 'Network/Http');
-		$HttpSocket = new HttpSocket();
+		App::uses('SyncTool', 'Tools');
+		$syncTool = new SyncTool();
+		$HttpSocket = $syncTool->setupHttpSocket();
 		$response = $HttpSocket->get('https://pgp.mit.edu/pks/lookup?search=' . $email . '&op=index&fingerprint=on');
 		if ($response->code != 200) return $response->code;
 		$string = str_replace(array("\r", "\n"), "", $response->body);

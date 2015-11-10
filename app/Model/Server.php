@@ -43,24 +43,14 @@ class Server extends AppModel {
 				'message' => 'A authkey of a minimum length of 40 is required.',
 				'required' => true,
 			),
-			'notempty' => array(
-				'rule' => array('notempty'),
-				'message' => 'Please enter a valid authentication key.',
-				//'allowEmpty' => false,
-				//'required' => false,
-				//'last' => false, // Stop validation after this rule
-				//'on' => 'create', // Limit validation to 'create' or 'update' operations
+			'valueNotEmpty' => array(
+				'rule' => array('valueNotEmpty'),
 			),
 		),
 		'org' => array(
-			'notempty' => array(
-				'rule' => array('notempty'),
-				//'message' => 'Your custom message here',
-				//'allowEmpty' => false,
-				//'required' => false,
-				//'last' => false, // Stop validation after this rule
-				//'on' => 'create', // Limit validation to 'create' or 'update' operations
-			),
+			'valueNotEmpty' => array(
+				'rule' => array('valueNotEmpty'),
+			)
 		),
 		'push' => array(
 			'boolean' => array(
@@ -415,6 +405,31 @@ class Server extends AppModel {
 							'test' => 'testPasswordResetText',
 							'type' => 'string'
 					),
+					'enableEventBlacklisting' => array(
+							'level' => 1,
+							'description' => 'Since version 1.3.107 you can start blacklisting event UUIDs to prevent them from being pushed to your instance. This functionality will also happen silently whenever an event is deleted, preventing a deleted event from being pushed back from another instance.',
+							'value' => false,
+							'type' => 'boolean',
+							'test' => 'testBool',
+							'beforeHook' => 'eventBlacklistingBeforeHook'
+					),
+					'log_client_ip' => array(
+							'level' => 1,
+							'description' => 'If enabled, all log entries will include the IP address of the user.',
+							'value' => false,
+							'errorMessage' => '',
+							'test' => 'testBool',
+							'type' => 'boolean',
+							'beforeHook' => 'ipLogBeforeHook'
+					),
+					'log_auth' => array(
+							'level' => 1,
+							'description' => 'If enabled, MISP will log all successful authentications using API keys. The requested URLs are also logged.',
+							'value' => false,
+							'errorMessage' => '',
+							'test' => 'testBool',
+							'type' => 'boolean',
+					),
 			),
 			'GnuPG' => array(
 					'branch' => 1,
@@ -465,7 +480,7 @@ class Server extends AppModel {
 							'errorMessage' => '',
 							'test' => 'testForEmpty',
 							'type' => 'string',
-					),
+					)
 			),
 			'Proxy' => array(
 					'branch' => 1,
@@ -561,7 +576,7 @@ class Server extends AppModel {
 					'branch' => 1,
 					'RPZ_policy' => array(
 						'level' => 1,
-						'description' => 'The duration (in seconds) of how long the user will be locked out when the allowed number of login attempts are exhausted.',
+						'description' => 'The default policy action for the values added to the RPZ.',
 						'value' => 0,
 						'errorMessage' => '',
 						'test' => 'testForRPZBehaviour',
@@ -770,89 +785,100 @@ class Server extends AppModel {
 							$eventId,
 							$server);
 					if (null != $event) {
-						// we have an Event array
-						// The event came from a pull, so it should be locked.
-						$event['Event']['locked'] = true;
-						if (!isset($event['Event']['distribution'])) { // version 1
-							$event['Event']['distribution'] = '1';
+						$blocked = false;
+						if (Configure::read('MISP.enableEventBlacklisting')) {
+							$this->EventBlacklist = ClassRegistry::init('EventBlacklist');
+							$r = $this->EventBlacklist->find('first', array('conditions' => array('event_uuid' => $event['Event']['uuid'])));
+							if (!empty($r))	{
+								$blocked = true;
+								$fails[$eventId] = 'Event blocked by local blocklist.';
+							}
 						}
-						// Distribution
-						switch($event['Event']['distribution']) {
-							case 1:
-							case 'This community only': // backwards compatibility
-								// if community only, downgrade to org only after pull
-								$event['Event']['distribution'] = '0';
-								break;
-							case 2:
-							case 'Connected communities': // backwards compatibility
-								// if connected communities downgrade to community only
+						if (!$blocked) {
+							// we have an Event array
+							// The event came from a pull, so it should be locked.
+							$event['Event']['locked'] = true;
+							if (!isset($event['Event']['distribution'])) { // version 1
 								$event['Event']['distribution'] = '1';
-								break;
-							case 'All communities': // backwards compatibility
-								$event['Event']['distribution'] = '3';
-								break;
-							case 'Your organisation only': // backwards compatibility
-								$event['Event']['distribution'] = '0';
-								break;
-						}
-		
-						// correct $event if just one Attribute
-						if (is_array($event['Event']['Attribute']) && isset($event['Event']['Attribute']['id'])) {
-							$tmp = $event['Event']['Attribute'];
-							unset($event['Event']['Attribute']);
-							$event['Event']['Attribute'][0] = $tmp;
-						}
-						if (is_array($event['Event']['Attribute'])) {
-							$size = is_array($event['Event']['Attribute']) ? count($event['Event']['Attribute']) : 0;
-							if ($size == 0) {
+							}
+							// Distribution
+							switch($event['Event']['distribution']) {
+								case 1:
+								case 'This community only': // backwards compatibility
+									// if community only, downgrade to org only after pull
+									$event['Event']['distribution'] = '0';
+									break;
+								case 2:
+								case 'Connected communities': // backwards compatibility
+									// if connected communities downgrade to community only
+									$event['Event']['distribution'] = '1';
+									break;
+								case 'All communities': // backwards compatibility
+									$event['Event']['distribution'] = '3';
+									break;
+								case 'Your organisation only': // backwards compatibility
+									$event['Event']['distribution'] = '0';
+									break;
+							}
+			
+							// correct $event if just one Attribute
+							if (is_array($event['Event']['Attribute']) && isset($event['Event']['Attribute']['id'])) {
+								$tmp = $event['Event']['Attribute'];
+								unset($event['Event']['Attribute']);
+								$event['Event']['Attribute'][0] = $tmp;
+							}
+							if (is_array($event['Event']['Attribute'])) {
+								$size = is_array($event['Event']['Attribute']) ? count($event['Event']['Attribute']) : 0;
+								if ($size == 0) {
+									$fails[$eventId] = 'Empty event received.';
+									continue;
+								}
+								for ($i = 0; $i < $size; $i++) {
+									if (!isset($event['Event']['Attribute'][$i]['distribution'])) { // version 1
+										$event['Event']['Attribute'][$i]['distribution'] = 1;
+									}
+									switch($event['Event']['Attribute'][$i]['distribution']) {
+										case 1:
+										case 'This community only': // backwards compatibility
+											// if community falseonly, downgrade to org only after pull
+											$event['Event']['Attribute'][$i]['distribution'] = '0';
+											break;
+										case 2:
+										case 'Connected communities': // backwards compatibility
+											// if connected communities downgrade to community only
+											$event['Event']['Attribute'][$i]['distribution'] = '1';
+											break;
+										case 'All communities': // backwards compatibility
+											$event['Event']['Attribute'][$i]['distribution'] = '3';
+											break;
+										case 'Your organisation only': // backwards compatibility
+											$event['Event']['Attribute'][$i]['distribution'] = '0';
+											break;
+									}
+								}
+								$event['Event']['Attribute'] = array_values($event['Event']['Attribute']);
+							} else {
 								$fails[$eventId] = 'Empty event received.';
 								continue;
 							}
-							for ($i = 0; $i < $size; $i++) {
-								if (!isset($event['Event']['Attribute'][$i]['distribution'])) { // version 1
-									$event['Event']['Attribute'][$i]['distribution'] = 1;
+							// Distribution, set reporter of the event, being the admin that initiated the pull
+							$event['Event']['user_id'] = $user['id'];
+							// check if the event already exist (using the uuid)
+							$existingEvent = null;
+							$existingEvent = $eventModel->find('first', array('conditions' => array('Event.uuid' => $event['Event']['uuid'])));
+							if (!$existingEvent) {
+								// add data for newly imported events
+								$passAlong = $server['Server']['url'];
+								$result = $eventModel->_add($event, $fromXml = true, $user, $server['Server']['org'], $passAlong, true, $jobId);
+								if ($result) $successes[] = $eventId;
+								else {
+									$fails[$eventId] = 'Failed (partially?) because of validation errors: '. print_r($eventModel->validationErrors, true);
 								}
-								switch($event['Event']['Attribute'][$i]['distribution']) {
-									case 1:
-									case 'This community only': // backwards compatibility
-										// if community falseonly, downgrade to org only after pull
-										$event['Event']['Attribute'][$i]['distribution'] = '0';
-										break;
-									case 2:
-									case 'Connected communities': // backwards compatibility
-										// if connected communities downgrade to community only
-										$event['Event']['Attribute'][$i]['distribution'] = '1';
-										break;
-									case 'All communities': // backwards compatibility
-										$event['Event']['Attribute'][$i]['distribution'] = '3';
-										break;
-									case 'Your organisation only': // backwards compatibility
-										$event['Event']['Attribute'][$i]['distribution'] = '0';
-										break;
-								}
+							} else {
+								$result = $eventModel->_edit($event, $existingEvent['Event']['id'], $jobId);
+								if ($result === 'success') $successes[] = $eventId;
+								else $fails[$eventId] = $result;
 							}
-							$event['Event']['Attribute'] = array_values($event['Event']['Attribute']);
-						} else {
-							$fails[$eventId] = 'Empty event received.';
-							continue;
-						}
-						// Distribution, set reporter of the event, being the admin that initiated the pull
-						$event['Event']['user_id'] = $user['id'];
-						// check if the event already exist (using the uuid)
-						$existingEvent = null;
-						$existingEvent = $eventModel->find('first', array('conditions' => array('Event.uuid' => $event['Event']['uuid'])));
-						if (!$existingEvent) {
-							// add data for newly imported events
-							$passAlong = $server['Server']['url'];
-							$result = $eventModel->_add($event, $fromXml = true, $user, $server['Server']['org'], $passAlong, true, $jobId);
-							if ($result) $successes[] = $eventId;
-							else {
-								$fails[$eventId] = 'Failed (partially?) because of validation errors: '. print_r($eventModel->validationErrors, true);
-							}
-						} else {
-							$result = $eventModel->_edit($event, $existingEvent['Event']['id'], $jobId);
-							if ($result === 'success') $successes[] = $eventId;
-							else $fails[$eventId] = $result;
 						}
 					} else {
 						// error
@@ -938,27 +964,25 @@ class Server extends AppModel {
 			$eventid_conditions_key = 'Event.id >';
 			$eventid_conditions_value = $this->data['Server']['lastpushedid'];
 		} elseif (true == $technique) {
-			$eventIds[] = array('Event' => array ('id' => intval($technique)));
+			$eventid_conditions_key = 'Event.id';
+			$eventid_conditions_value = intval($technique);
 		} else {
 			$this->redirect(array('action' => 'index'));
 		}
-		if (!isset($eventIds)) {
-			$findParams = array(
-					'conditions' => array(
-							$eventid_conditions_key => $eventid_conditions_value,
-							'Event.distribution >' => 0,
-							'Event.published' => 1,
-							'Event.attribute_count >' => 0
-					), //array of conditions
-					'recursive' => -1, //int
-					'fields' => array('Event.id', 'Event.timestamp', 'Event.uuid'), //array of field names
-			);
-			$eventIds = $eventModel->find('all', $findParams);
-		}
+		$findParams = array(
+				'conditions' => array(
+						$eventid_conditions_key => $eventid_conditions_value,
+						'Event.distribution >' => 0,
+						'Event.published' => 1,
+						'Event.attribute_count >' => 0
+				), //array of conditions
+				'recursive' => -1, //int
+				'fields' => array('Event.id', 'Event.timestamp', 'Event.uuid'), //array of field names
+		);
+		$eventIds = $eventModel->find('all', $findParams);
 		$eventUUIDsFiltered = $this->filterEventIdsForPush($id, $HttpSocket, $eventIds);
 		if ($eventUUIDsFiltered === false) $pushFailed = true;
 		if (!empty($eventUUIDsFiltered)) {
-			
 			$eventCount = count($eventUUIDsFiltered);
 			//debug($eventIds);
 			// now process the $eventIds to pull each of the events sequentially
@@ -1311,6 +1335,29 @@ class Server extends AppModel {
 		return true;
 	}
 	
+	public function ipLogBeforeHook($setting, $value) {
+		if ($setting == 'MISP.log_client_ip') {
+			if ($value == true) {
+				$this->updateDatabase('addIPLogging');
+			}
+		}
+		return true;
+	}
+	
+	public function eventBlacklistingBeforeHook($setting, $value) {
+		$this->cleanCacheFiles();
+		if ($value) {
+			try {
+				$this->EventBlacklist = ClassRegistry::init('EventBlacklist');
+				$schema = $this->EventBlacklist->schema();
+				if (!isset($schema['event_info'])) $this->updateDatabase('addEventBlacklistsContext');
+			} catch (Exception $e) {
+				$this->updateDatabase('addEventBlacklists');
+			}
+		}
+		return true;
+	}
+	
 	
 	// never come here directly, always go through a secondary check like testForTermsFile in order to also pass along the expected file path
 	private function __testForFile($value, $path) {
@@ -1327,13 +1374,10 @@ class Server extends AppModel {
 	}
 	
 	public function checkVersion($newest) {
-		App::uses('Folder', 'Utility');
-		$file = new File (ROOT . DS . 'VERSION.json', true);
-		$version_array = json_decode($file->read());
-		$file->close();
-		$current = 'v' . $version_array->major . '.' . $version_array->minor . '.' . $version_array->hotfix;
+		$version_array = $this->checkMISPVersion();
+		$current = 'v' . $version_array['major'] . '.' . $version_array['minor'] . '.' . $version_array['hotfix'];
 		$newest_array = $this->__dissectVersion($newest);
-		$upToDate = $this->__compareVersions(array($version_array->major, $version_array->minor, $version_array->hotfix), $newest_array, 0); 
+		$upToDate = $this->__compareVersions(array($version_array['major'], $version_array['minor'], $version_array['hotfix']), $newest_array, 0); 
 		return array ('current' => $current, 'newest' => $newest, 'upToDate' => $upToDate);
 	}
 	
@@ -1523,6 +1567,65 @@ class Server extends AppModel {
 		return $proxyStatus;
 	}
 	
+	public function sessionDiagnostics(&$diagnostic_errors, &$sessionCount) {
+		if (Configure::read('Session.defaults') !== 'database') {
+			$sessionCount = 'N/A';
+			return 2;
+		}
+		$sql = 'SELECT COUNT(id) FROM `cake_sessions` WHERE `expires` < ' . time() . ';';
+		$sqlResult = $this->query($sql);
+		if (isset($sqlResult[0][0])) $sessionCount = $sqlResult[0][0]['COUNT(id)'];
+		else {
+			$sessionCount = 'Error';
+			return 3;
+		}
+		$sessionStatus = 0;
+		if ($sessionCount > 100) {
+			$sessionStatus = 1;
+			$diagnostic_errors++;
+		}
+		return $sessionStatus;
+	}
+	
+	public function workerDiagnostics(&$workerIssueCount) {
+		$this->ResqueStatus = new ResqueStatus\ResqueStatus(Resque::redis());
+		$workers = $this->ResqueStatus->getWorkers();
+		if (function_exists('posix_getpwuid')) {
+			$currentUser = posix_getpwuid(posix_geteuid());
+			$currentUser = $currentUser['name'];
+		} else $currentUser = trim(shell_exec('whoami'));
+		$worker_array = array(
+				'cache' => array('ok' => true),
+				'default' => array('ok' => true),
+				'email' => array('ok' => true),
+				'scheduler' => array('ok' => true)
+		);
+		$procAccessible = file_exists('/proc');
+		foreach ($workers as $pid => $worker) {
+			$entry = ($worker['type'] == 'regular') ? $worker['queue'] : $worker['type'];
+			$correct_user = ($currentUser === $worker['user']);
+			if (!is_numeric($pid)) throw new MethodNotAllowedException('Non numeric PID found.');
+			if ($procAccessible) $alive = $correct_user ? (file_exists('/proc/' . addslashes($pid))) : false;
+			else $alive = 'N/A';
+			$ok = true;
+			if (!$alive || !$correct_user) {
+				$ok = false;
+				$workerIssueCount++;
+				$worker_array[$entry]['ok'] = false;
+			}
+			$worker_array[$entry]['workers'][] = array('pid' => $pid, 'user' => $worker['user'], 'alive' => $alive, 'correct_user' => $correct_user, 'ok' => $ok);
+		}
+		foreach ($worker_array as $k => &$queue) {
+			if ($k != 'scheduler') $worker_array[$k]['jobCount'] = CakeResque::getQueueSize($k);
+			if (!isset($queue['workers'])) {
+				$workerIssueCount++;
+				$queue['ok'] = false;
+			}
+		}
+		$worker_array['proc_accessible'] = $procAccessible;
+		return $worker_array;
+	}
+	
 	public function retrieveCurrentSettings($branch, $subString) {
 		$settings = array();
 		foreach ($this->serverSettings[$branch] as $settingName => $setting) {
@@ -1533,5 +1636,71 @@ class Server extends AppModel {
 			}
 		}
 		return $settings;
+	}
+	
+	public function killWorker($pid, $user) {
+		if (!is_numeric($pid)) throw new MethodNotAllowedException('Non numeric PID found!');
+		$this->ResqueStatus = new ResqueStatus\ResqueStatus(Resque::redis());
+		$workers = $this->ResqueStatus->getWorkers();
+		$this->Log = ClassRegistry::init('Log');
+		if (isset($workers[$pid])) {
+			$worker = $workers[$pid];
+			if (substr_count(trim(shell_exec('ps -p ' . $pid)), PHP_EOL) > 0 ? true : false) {
+				shell_exec('kill ' . $pid . ' > /dev/null 2>&1 &');
+				$this->Log->create();
+				$this->Log->save(array(
+						'org' => $user['org'],
+						'model' => 'User',
+						'model_id' => $user['id'],
+						'email' => $user['email'],
+						'action' => 'stop_worker',
+						'user_id' => $user['id'],
+						'title' => 'Stopping a worker.',
+						'change' => 'Stopping a worker. Worker was of type ' . $worker['queue'] . ' with pid ' . $pid
+				));
+			} else {
+				$this->ResqueStatus->removeWorker($pid);
+				$this->Log->create();
+				$this->Log->save(array(
+						'org' => $user['org'],
+						'model' => 'User',
+						'model_id' => $user['id'],
+						'email' => $user['email'],
+						'action' => 'remove_dead_workers',
+						'user_id' => $user['id'],
+						'title' => 'Removing a dead worker.',
+						'change' => 'Removind dead worker data. Worker was of type ' . $worker['queue'] . ' with pid ' . $pid
+				));
+			}
+			$this->ResqueStatus->removeWorker($pid);
+		}
+	}
+	
+	public function workerRemoveDead($user) {
+		$this->ResqueStatus = new ResqueStatus\ResqueStatus(Resque::redis());
+		$workers = $this->ResqueStatus->getWorkers();
+		$this->Log = ClassRegistry::init('Log');
+		if (function_exists('posix_getpwuid')) {
+			$currentUser = posix_getpwuid(posix_geteuid());
+			$currentUser = $currentUser['name'];
+		} else $currentUser = trim(shell_exec('whoami'));
+		foreach ($workers as $pid => $worker) { 
+			if (!is_numeric($pid)) throw new MethodNotAllowedException('Non numeric PID found!');
+			$pidTest = substr_count(trim(shell_exec('ps -p ' . $pid)), PHP_EOL) > 0 ? true : false; 
+			if ($worker['user'] == $currentUser && !$pidTest) {
+				$this->ResqueStatus->removeWorker($pid);
+				$this->Log->create();
+				$this->Log->save(array(
+						'org' => $user['org'],
+						'model' => 'User',
+						'model_id' => $user['id'],
+						'email' => $user['email'],
+						'action' => 'remove_dead_workers',
+						'user_id' => $user['id'],
+						'title' => 'Removing a dead worker.',
+						'change' => 'Removind dead worker data. Worker was of type ' . $worker['queue'] . ' with pid ' . $pid
+				));
+			}
+		}
 	}
 }

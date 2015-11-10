@@ -70,7 +70,6 @@
 							<b class="caret"></b>
 						</a>
 						<ul class="dropdown-menu">
-							<li><a href="/users/news">News</a></li>
 							<li><a href="/users/view/me">My Profile</a></li>
 							<li><a href="/users/memberslist">Members List</a></li>
 							<li><a href="/roles/index">Role Permissions</a></li>
@@ -118,7 +117,12 @@
 									<li><a href="/jobs/index">Jobs</a></li>
 									<li class="divider"></li>
 									<li><a href="/tasks">Scheduled Tasks</a></li>
-								<?php endif; ?>						
+								<?php endif; ?>
+								<?php if (Configure::read('MISP.enableEventBlacklisting') && $isSiteAdmin): ?>	
+									<li class="divider"></li>
+									<li><a href="/eventBlacklists/add">Blacklist Event</a></li>
+									<li><a href="/eventBlacklists">Manage Event Blacklists</a></li>
+								<?php endif; ?>			
 							<?php endif; ?>
 						</ul>
 					</li>
