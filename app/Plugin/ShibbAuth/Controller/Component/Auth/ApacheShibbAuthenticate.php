@@ -67,6 +67,7 @@ class ApacheShibbAuthenticate extends BaseAuthenticate {
 		// Get Default parameters
 		$roleId = -1;
 		$org = Configure::read('ApacheShibbAuth.DefaultOrg');
+		$useDefaultOrg = Configure::read('ApacheShibbAuth.UseDefaultOrg');
 		// Get tags from SSO config
 		$mailTag = Configure::read('ApacheShibbAuth.MailTag');
 		$OrgTag = Configure::read('ApacheShibbAuth.OrgTag');
@@ -88,17 +89,18 @@ class ApacheShibbAuthenticate extends BaseAuthenticate {
 		// Find user with real username (mail)
 		$user = $this->_findUser($mispUsername);
 
-		//Obtain default org. If not, org keeps the default value
-		if (isset($_SERVER[$OrgTag])) {
+		//Obtain default org. If default is not enforced and it is given, org keeps the default value
+		if (!$useDefaultOrg && isset($_SERVER[$OrgTag])) {
 			$org = $_SERVER[$OrgTag];
-			//Check if the organization exits and create it if not
-			$org = $this->checkOrganization($org, $user);
 		}
+
+		//Check if the organization exits and create it if not
+		$org = $this->checkOrganization($org, $user);
 
 		//Get user role from its list of groups
 		list($roleChanged, $roleId) = $this->getUserRoleFromGroup($groupTag, $groupRoleMatching, $roleId);
 		if($roleId < 0) {
-			CakeLog::write('error', 'No role was assigned, no egorup matched the configuration.');
+			CakeLog::write('error', 'No role was assigned, no egroup matched the configuration.');
 			return false; //Deny if the user is not in any egroup
 		}
 
@@ -135,7 +137,8 @@ class ApacheShibbAuthenticate extends BaseAuthenticate {
 			'nids_sid' => ((int)$nidsMax[0][0]['nidsMax'])+1,
 			'newsread' => time(),
 			'role_id' => $roleId,
-			'change_pw' => 0
+			'change_pw' => 0,
+			'date_created' => time()
 		));
 
 		// save user
