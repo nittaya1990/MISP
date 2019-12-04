@@ -1,102 +1,84 @@
-<div class="events form">
-<?php echo $this->Form->create('', array('type' => 'file'));?>
-	<fieldset>
-		<legend>Add Event</legend>
-		<?php
-		echo $this->Form->input('date', array(
-				'type' => 'text',
-				'class' => 'datepicker'
-		));
-		$initialDistribution = 3;
-		if (Configure::read('MISP.default_event_distribution') != null) {
-			$initialDistribution = Configure::read('MISP.default_event_distribution');
-		}
-		echo $this->Form->input('distribution', array(
-				'options' => array($distributionLevels),
-				'label' => 'Distribution',
-				'selected' => $initialDistribution,
-			));
-		echo $this->Form->input('threat_level_id', array(
-				'div' => 'input clear'
-				));
-		echo $this->Form->input('analysis', array(
-				'options' => array($analysisLevels),
-				));
-		echo $this->Form->input('info', array(
-					'label' => 'Event Description',
-					'div' => 'clear',
-					'type' => 'text',
-					'class' => 'form-control span6',
-					'placeholder' => 'Quick Event Description or Tracking Info'
-				));
-		echo $this->Form->input('Event.submittedgfi', array(
-				'label' => '<b>GFI sandbox</b>',
-				'type' => 'file',
-				'div' => 'clear'
-				));
-		?>
-	</fieldset>
 <?php
-echo $this->Form->button('Add', array('class' => 'btn btn-primary'));
-echo $this->Form->end();
-?>
-</div>
-
-<?php
-	echo $this->element('side_menu', array('menuList' => 'event-collection', 'menuItem' => 'add'));
+    $modelForForm = 'Event';
+    echo $this->element('genericElements/Form/genericForm', array(
+        'form' => $this->Form,
+        'data' => array(
+            'title' => $action === 'add' ? __('Add Event') : __('Edit Event'),
+            'model' => $modelForForm,
+            'fields' => array(
+                array(
+                    'field' => 'org_id',
+                    'class' => 'org-id-picker-hidden-field',
+                    'type' => 'text',
+                    'hidden' => true
+                ),
+                array(
+                    'field' => 'date',
+                    'class' => 'datepicker',
+                    'type' => 'text',
+                    'stayInLine' => 1
+                ),
+                array(
+                    'field' => 'distribution',
+                    'class' => 'input',
+                    'options' => $distributionLevels,
+                    'default' => isset($event['Event']['distribution']) ? $event['Event']['distribution'] : $initialDistribution,
+                    'stayInLine' => 1
+                ),
+                array(
+                    'field' => 'sharing_group_id',
+                    'class' => 'input',
+                    'options' => $sharingGroups,
+                    'label' => __("Sharing Group")
+                ),
+                array(
+                    'field' => 'threat_level_id',
+                    'class' => 'input',
+                    'options' => $threatLevels,
+                    'label' => __("Threat Level"),
+                    'stayInLine' => 1
+                ),
+                array(
+                    'field' => 'analysis',
+                    'class' => 'input',
+                    'options' => $analysisLevels
+                ),
+                array(
+                    'field' => 'info',
+                    'label' => __('Event Info'),
+                    'class' => 'input span6',
+                    'type' => 'text',
+                    'placeholder' => __('Quick Event Description or Tracking Info')
+                ),
+                array(
+                    'field' => 'extends_uuid',
+                    'class' => 'input span6',
+                    'placeholder' => __('Event UUID or ID. Leave blank if not applicable.'),
+                    'label' => __("Extends Event"),
+                    'default' => isset($extends_uuid) ? $extends_uuid : ''
+                ),
+                '<div id="extended_event_preview" style="width:446px;"></div>'
+            ),
+            'submit' => array(
+                'action' => $this->request->params['action']
+            )
+        )
+    ));
+    echo $this->element('/genericElements/SideMenu/side_menu', array('menuList' => 'event-collection', 'menuItem' => $this->action === 'add' ? 'add' : 'editEvent'));
 ?>
 
 <script type="text/javascript">
-//
-//Generate tooltip information
-//
-var formInfoValues = {
-		'EventDistribution' : new Array(),
-		'EventThreatLevelId' : new Array(),
-		'EventAnalysis' : new Array()
-};
+    $('#EventDistribution').change(function() {
+        checkSharingGroup('Event');
+    });
 
-<?php
-foreach ($distributionDescriptions as $type => $def) {
-	$info = isset($def['formdesc']) ? $def['formdesc'] : $def['desc'];
-	echo "formInfoValues['EventDistribution']['" . addslashes($type) . "'] = \"" . addslashes($info) . "\";\n";	// as we output JS code we need to add slashes
-}
-foreach ($riskDescriptions as $type => $def) {
-	echo "formInfoValues['EventThreatLevelId']['" . addslashes($type) . "'] = \"" . addslashes($def) . "\";\n";	// as we output JS code we need to add slashes
-}
-foreach ($analysisDescriptions as $type => $def) {
-	$info = isset($def['formdesc']) ? $def['formdesc'] : $def['desc'];
-	echo "formInfoValues['EventAnalysis']['" . addslashes($type) . "'] = \"" . addslashes($info) . "\";\n";	// as we output JS code we need to add slashes
-}
-?>
+    $("#EventExtendsUuid").keyup(function() {
+        previewEventBasedOnUuids();
+    });
 
-$(document).ready(function() {
-
-	$("#EventAnalysis, #EventThreatLevelId, #EventDistribution").on('mouseover', function(e) {
-	    var $e = $(e.target);
-	    if ($e.is('option')) {
-	        $('#'+e.currentTarget.id).popover('destroy');
-	        $('#'+e.currentTarget.id).popover({
-	            trigger: 'focus',
-	            placement: 'right',
-	            content: formInfoValues[e.currentTarget.id][$e.val()],
-	        }).popover('show');
-		}
-	});
-
-	// workaround for browsers like IE and Chrome that do now have an onmouseover on the 'options' of a select.
-	// disadvangate is that user needs to click on the item to see the tooltip.
-	// no solutions exist, except to generate the select completely using html.
-	$("#EventAnalysis, #EventThreatLevelId, #EventDistribution").on('change', function(e) {
-		var $e = $(e.target);
-        $('#'+e.currentTarget.id).popover('destroy');
-        $('#'+e.currentTarget.id).popover({
-            trigger: 'focus',
-            placement: 'right',
-            content: formInfoValues[e.currentTarget.id][$e.val()],
-        }).popover('show');
-	});
-});
-
+    $(document).ready(function() {
+        checkSharingGroup('Event');
+        previewEventBasedOnUuids();
+    });
 </script>
 <?php echo $this->Js->writeBuffer();

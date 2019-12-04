@@ -1,49 +1,66 @@
 <?php
 App::uses('AppModel', 'Model');
-/**
- * Job Model
- *
- * @property Job $Job
-*/
-class Job extends AppModel {
-	
-	public function cache($type, $isSiteAdmin, $org, $target, $jobOrg, $sid = null) {
-		$extra = null;
-		$extra2 = null;
-		$shell = 'Event';
-		$this->create();
-		$data = array(
-				'worker' => 'cache',
-				'job_type' => 'cache_' . $type,
-				'job_input' => $target,
-				'status' => 0,
-				'retries' => 0,
-				'org' => $jobOrg,
-				'message' => 'Fetching events.',
-		);
-		if ($type === 'md5' || $type === 'sha1') {
-			$extra = $type;
-			$type = 'hids';
-		}
-		if ($type === 'csv_all' || $type === 'csv_sig') {
-			$extra = $type;
-			$type = 'csv';
-		}
-		if ($type === 'suricata' || $type === 'snort') {
-			$extra = $type;
-			$type = 'nids';
-			$extra2 = $sid;
-		}
-		if ($type === 'rpz') $extra = $type;
-		$this->save($data);
-		$id = $this->id;
-		$process_id = CakeResque::enqueue(
-				'cache',
-				$shell . 'Shell',
-				array('cache' . $type, $org, $isSiteAdmin, $id, $extra, $extra2),
-				true
-		);
-		$this->saveField('process_id', $process_id);
-		return $id;
-	}
+
+class Job extends AppModel
+{
+    public $belongsTo = array(
+            'Org' => array(
+                    'className' => 'Organisation',
+                    'foreignKey' => 'org_id',
+                    'order' => array(),
+                    'fields' => array('id', 'name', 'uuid')
+            ),
+        );
+
+    public function beforeValidate($options = array())
+    {
+        parent::beforeValidate();
+        $date = date('Y-m-d H:i:s');
+        if (empty($this->data['Job']['id'])) {
+            $this->data['Job']['date_created'] = $date;
+            $this->data['Job']['date_modified'] = $date;
+        } else {
+            $this->data['Job']['date_modified'] = $date;
+        }
+    }
+
+    public function cache($type, $user)
+    {
+        $extra = null;
+        $extra2 = null;
+        $shell = 'Event';
+        $this->create();
+        $data = array(
+                'worker' => 'cache',
+                'job_type' => 'cache_' . $type,
+                'job_input' => $user['Role']['perm_site_admin'] ? 'All events.' : 'Events visible to: ' . $user['Organisation']['name'],
+                'status' => 0,
+                'retries' => 0,
+                'org_id' => $user['Role']['perm_site_admin'] ? 0 : $user['org_id'],
+                'message' => 'Fetching events.',
+        );
+        $this->save($data);
+        $id = $this->id;
+        $this->Event = ClassRegistry::init('Event');
+        if (in_array($type, array_keys($this->Event->export_types)) && $type !== 'bro') {
+            $process_id = CakeResque::enqueue(
+                    'cache',
+                    $shell . 'Shell',
+                    array('cache', $user['id'], $id, $type),
+                    true
+            );
+        } elseif ($type === 'bro') {
+            $type = 'bro';
+            $process_id = CakeResque::enqueue(
+                    'cache',
+                    $shell . 'Shell',
+                    array('cachebro', $user['id'], $id),
+                    true
+            );
+        } else {
+            throw new MethodNotAllowedException('Invalid export type.');
+        }
+        $this->saveField('process_id', $process_id);
+        return $id;
+    }
 }

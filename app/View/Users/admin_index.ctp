@@ -1,102 +1,99 @@
 <div class="users index">
-	<h2><?php echo __('Users');?></h2>
-	<div class="pagination">
+    <h2><?php echo __('Users');?></h2>
+    <?php
+        if ($isSiteAdmin) {
+            echo sprintf(
+                '<span>%s</span>',
+                __(
+                    'Click %s to reset the API keys of all sync and org admin users in one shot. This will also automatically inform them of their new API keys.',
+                    $this->Form->postLink(
+                        __('here'),
+                        $baseurl . '/users/resetAllSyncAuthKeys',
+                        array(
+                            'title' => __('Reset all sync user API keys'),
+                            'aria-label' => __('Reset all sync user API keys'),
+                            'class' => 'bold'
+                        ),
+                        __('Are you sure you wish to reset the API keys of all users with sync privileges?')
+                    )
+                )
+            );
+        }
+    ?>
+    <div class="pagination">
         <ul>
         <?php
-	        $this->Paginator->options(array(
-	            'update' => '.span12',
-	            'evalScripts' => true,
-	            'before' => '$(".progress").show()',
-	            'complete' => '$(".progress").hide()',
-	        ));
+            $this->Paginator->options(array(
+                'update' => '.span12',
+                'evalScripts' => true,
+                'before' => '$(".progress").show()',
+                'complete' => '$(".progress").hide()',
+            ));
             echo $this->Paginator->prev('&laquo; ' . __('previous'), array('tag' => 'li', 'escape' => false), null, array('tag' => 'li', 'class' => 'prev disabled', 'escape' => false, 'disabledTag' => 'span'));
             echo $this->Paginator->numbers(array('modulus' => 20, 'separator' => '', 'tag' => 'li', 'currentClass' => 'active', 'currentTag' => 'span'));
             echo $this->Paginator->next(__('next') . ' &raquo;', array('tag' => 'li', 'escape' => false), null, array('tag' => 'li', 'class' => 'next disabled', 'escape' => false, 'disabledTag' => 'span'));
         ?>
         </ul>
     </div>
-	<?php
-		$tab = "Center";
-		$filtered = false;
-		if (count($passedArgsArray) > 0) {
-			$tab = "Left";
-			$filtered = true;
-		}
-	?>
-	<div class="tabMenuFixedContainer" style="display:inline-block;">
-	<span class="tabMenuFixed tabMenuFixed<?php echo $tab; ?> tabMenuSides">
-		<span id="create-button" title="Modify filters" class="icon-search useCursorPointer" onClick="getPopup('<?php echo $urlparams;?>', 'admin/users', 'filterUserIndex');"></span>
-	</span>
-	<?php if ($filtered):
-		foreach ($passedArgsArray as $k => $v):?>
-			<span class="tabMenuFixed tabMenuFixedElement">
-				<?php echo h(ucfirst($k)) . " : " . h($v); ?>
-			</span>
-		<?php endforeach; ?>
-	<span class="tabMenuFixed tabMenuFixedRight tabMenuSides">
-		<?php echo $this->Html->link('', array('controller' => 'users', 'action' => 'index', 'admin' => true), array('class' => 'icon-remove', 'title' => 'Remove filters'));?>
-	</span>
-	<?php endif;?>
-	</div>
-	<table class="table table-striped table-hover table-condensed">
-	<tr>
-			<th><?php echo $this->Paginator->sort('id');?></th>
-			<th><?php echo $this->Paginator->sort('org_ci', 'Org');?></th>
-			<th><?php echo $this->Paginator->sort('role_id', 'Role');?></th>
-			<th><?php echo $this->Paginator->sort('email');?></th>
-			<th><?php echo $this->Paginator->sort('autoalert');?></th>
-			<th><?php echo $this->Paginator->sort('contactalert');?></th>
-			<th><?php echo $this->Paginator->sort('gpgkey');?></th>
-			<th><?php echo $this->Paginator->sort('nids_sid');?></th>
-			<th><?php echo $this->Paginator->sort('termsaccepted');?></th>
-			<th><?php echo $this->Paginator->sort('newsread');?></th>
-			<th class="actions"><?php echo __('Actions');?></th>
-	</tr>
-	<?php
-foreach ($users as $user): ?>
-	<tr>
-		<td class="short" ondblclick="document.location ='<?php echo $this->Html->url(array('admin' => true, 'action' => 'view', $user['User']['id']), true);?>';">
-		<?php echo h($user['User']['id']); ?>&nbsp;</td>
-		<td class="short" ondblclick="document.location ='<?php echo $this->Html->url(array('admin' => true, 'action' => 'view', $user['User']['id']), true);?>';">
-		<?php echo h($user['User']['org']); ?>&nbsp;</td>
-		<td class="short" ondblclick="document.location ='<?php echo $this->Html->url(array('admin' => true, 'action' => 'view', $user['User']['id']), true);?>';">
-		<?php echo $this->Html->link($user['Role']['name'], array('controller' => 'roles', 'action' => 'view', $user['Role']['id'])); ?></td>
-		<td ondblclick="document.location ='<?php echo $this->Html->url(array('admin' => true, 'action' => 'view', $user['User']['id']), true);?>';">
-		<?php echo h($user['User']['email']); ?>&nbsp;</td>
-		<td class="short" ondblclick="document.location ='<?php echo $this->Html->url(array('admin' => true, 'action' => 'view', $user['User']['id']), true);?>';">
-		<?php echo $user['User']['autoalert']? 'Yes' : 'No'; ?>&nbsp;</td>
-		<td class="short" ondblclick="document.location ='<?php echo $this->Html->url(array('admin' => true, 'action' => 'view', $user['User']['id']), true);?>';">
-		<?php echo $user['User']['contactalert']? 'Yes' : 'No'; ?>&nbsp;</td>
-		<td class="short" ondblclick="document.location ='<?php echo $this->Html->url(array('admin' => true, 'action' => 'view', $user['User']['id']), true);?>';">
-		<?php echo $user['User']['gpgkey']? 'Yes' : 'No'; ?>&nbsp;</td>
-		<td class="short" ondblclick="document.location ='<?php echo $this->Html->url(array('admin' => true, 'action' => 'view', $user['User']['id']), true);?>';">
-		<?php echo h($user['User']['nids_sid']); ?>&nbsp;</td>
-		<td class="short" ondblclick="document.location ='<?php echo $this->Html->url(array('admin' => true, 'action' => 'view', $user['User']['id']), true);?>';">
-		<?php
-	if (h($user['User']['termsaccepted']) == 1) {
-				echo "Yes";
-	} else {
-				echo "No";
-	}
-		?>&nbsp;</td>
-		<td class="short" ondblclick="document.location ='<?php echo $this->Html->url(array('admin' => true, 'action' => 'view', $user['User']['id']), true);?>';">
-		<?php echo h($user['User']['newsread']); ?>&nbsp;</td>
-		<td class="short action-links">
-			<?php
-	if (($isAclAdmin && (($user['User']['org'] == $me['org'])) || ('1' == $me['id'])) || ($isSiteAdmin)) {
-	?>
-		<span class="icon-refresh useCursorPointer" onClick="initiatePasswordReset('<?php echo $user['User']['id']; ?>');"></span>
-	<?php
-				echo $this->Html->link('', array('admin' => true, 'action' => 'edit', $user['User']['id']), array('class' => 'icon-edit', 'title' => 'Edit'));
-				echo $this->Form->postLink('', array('admin' => true, 'action' => 'delete', $user['User']['id']), array('class' => 'icon-trash', 'title' => 'Delete'), __('Are you sure you want to delete # %s?', $user['User']['id']));
-	}?>
-			<?php echo $this->Html->link('', array('admin' => true, 'action' => 'view', $user['User']['id']), array('class' => 'icon-list-alt', 'title' => 'View')); ?>
-		</td>
-	</tr>
-	<?php
-endforeach; ?>
-	</table>
-	<p>
+    <?php
+        $filterParamsString = array();
+        foreach ($passedArgsArray as $k => $v) {
+                $filterParamsString[] = sprintf(
+                    '%s: %s',
+                    h(ucfirst($k)),
+                    h($v)
+                );
+        }
+        $filterParamsString = implode(' & ', $filterParamsString);
+        $data = array(
+            'children' => array(
+                array(
+                    'children' => array(
+                        array(
+                            'id' => 'create-button',
+                            'title' => __('Modify filters'),
+                            'fa-icon' => 'search',
+                            'onClick' => 'getPopup',
+                            'onClickParams' => array($urlparams, 'admin/users', 'filterUserIndex')
+                        )
+                    )
+                ),
+                array(
+                    'children' => array(
+                        array(
+                            'requirement' => count($passedArgsArray) > 0,
+                            'html' => sprintf(
+                                '<span class="bold">%s</span>: %s',
+                                __('Filters'),
+                                $filterParamsString
+                            )
+                        ),
+                        array(
+                            'requirement' => count($passedArgsArray) > 0,
+                            'url' => '/admin/users/index',
+                            'title' => __('Remove filters'),
+                            'fa-icon' => 'times'
+                        )
+                    )
+                ),
+                array(
+                    'type' => 'search',
+                    'button' => __('Filter'),
+                    'placeholder' => __('Enter value to search'),
+                    'data' => '',
+                )
+            )
+        );
+        echo $this->element('/genericElements/ListTopBar/scaffold', array('data' => $data));
+        $tab = "Center";
+        $filtered = false;
+        if (count($passedArgsArray) > 0) {
+            $tab = "Left";
+            $filtered = true;
+        }
+        echo $this->element('Users/userIndexTable');
+    ?>
+    <p>
     <?php
     echo $this->Paginator->counter(array(
     'format' => __('Page {:page} of {:pages}, showing {:current} records out of {:count} total, starting on record {:start}, ending on {:end}')
@@ -113,6 +110,21 @@ endforeach; ?>
         </ul>
     </div>
 </div>
-<?php 
-	echo $this->element('side_menu', array('menuList' => 'admin', 'menuItem' => 'indexUser'));
-?>
+<script type="text/javascript">
+    var passedArgsArray = <?php echo $passedArgs; ?>;
+    $(document).ready(function() {
+        $('.searchFilterButton').click(function() {
+            runIndexFilter(this);
+        });
+        $('#quickFilterButton').click(function() {
+            runIndexQuickFilter();
+        });
+        $('#quickFilterField').on('keypress', function (e) {
+            if(e.which === 13) {
+                runIndexQuickFilter();
+            }
+        });
+    });
+</script>
+<?php
+    echo $this->element('/genericElements/SideMenu/side_menu', array('menuList' => 'admin', 'menuItem' => 'indexUser'));

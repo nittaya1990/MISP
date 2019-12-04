@@ -1,157 +1,104 @@
 <?php
 App::uses('AppController', 'Controller');
 
-class EventBlacklistsController extends AppController {
-	public $components = array('Session', 'RequestHandler');
+class EventBlacklistsController extends AppController
+{
+    public $components = array('Session', 'RequestHandler', 'BlackList');
 
-	public function beforeFilter() {
-		parent::beforeFilter();
-		if(!$this->_isSiteAdmin()) $this->redirect('/');
-		if (!Configure::read('MISP.enableEventBlacklisting')) {
-			$this->Session->setFlash(__('Event Blacklisting is not currently enabled on this instance.'));
-			$this->redirect('/');
-		}
-	}
+    public function beforeFilter()
+    {
+        parent::beforeFilter();
+        if (!$this->_isSiteAdmin()) {
+            $this->redirect('/');
+        }
+        if (false === Configure::read('MISP.enableEventBlacklisting')) {
+            $this->Flash->info(__('Event Blacklisting is not currently enabled on this instance.'));
+            $this->redirect('/');
+        }
+    }
 
-	public $paginate = array(
-			'limit' => 60,
-			'maxLimit' => 9999,	// LATER we will bump here on a problem once we have more than 9999 events <- no we won't, this is the max a user van view/page.
-			'order' => array(
-					'EventBlacklist.created' => 'DESC'
-			),
-	);
+    public $paginate = array(
+            'limit' => 60,
+            'maxLimit' => 9999, // LATER we will bump here on a problem once we have more than 9999 events <- no we won't, this is the max a user van view/page.
+            'order' => array(
+                    'EventBlacklist.created' => 'DESC'
+            ),
+    );
 
-	public function index() {
-		if ($this->response->type() === 'application/json' || $this->response->type() == 'application/xml' || $this->_isRest()) {
-			$blackList = $this->paginate();
-			$eventBlacklist= array();
-			foreach ($blackList as $item) {
-				$eventBlacklist[] = $item['EventBlacklist'];
-			}
-			$this->set('EventBlacklist', $eventBlacklist);
-			$this->set('_serialize', 'EventBlacklist');
-		} else {
-			$this->set('response', $this->paginate());
-		}
-	}
+    public function index()
+    {
+        $passedArgsArray = array();
+        $passedArgs = $this->passedArgs;
+        $params = array();
+        $validParams = array('event_uuid', 'comment', 'event_info', 'event_orgc');
+        foreach ($validParams as $validParam) {
+            if (!empty($this->params['named'][$validParam])) {
+                $params[$validParam] = $this->params['named'][$validParam];
+            }
+        }
+        if (!empty($this->params['named']['searchall'])) {
+            $params['AND']['OR'] = array(
+                'event_uuid' => $this->params['named']['searchall'],
+                'comment' => $this->params['named']['searchall'],
+                'event_info' => $this->params['named']['searchall'],
+                'event_orgc' => $this->params['named']['searchall']
+            );
+        }
+        $this->set('passedArgs', json_encode($passedArgs));
+        $this->set('passedArgsArray', $passedArgsArray);
+        $this->BlackList->index($this->_isRest(), $params);
+    }
 
-	public function add() {
-		if ($this->request->is('post')) {
-			if ($this->_isRest()) {
-				if ($this->response->type() === 'application/json') {
-					$isJson = true;
-					$data = $this->request->input('json_decode', true);
-				} else  {
-					$data = $this->request->data;
-				}
-				if (isset($data['request'])) $data = $data['request'];
-			} else {
-				$data = $this->request->data;
-			}
-			if (is_array($data['EventBlacklist']['uuids'])) $uuids = $data['EventBlacklist']['uuids'];
-			else $uuids = explode(PHP_EOL, $data['EventBlacklist']['uuids']);
-			$successes = array();
-			$fails = array();
-			foreach ($uuids as $uuid) {
-				$uuid = trim($uuid);
-				if (strlen($uuid) == 36) {
-					$this->EventBlacklist->create();
-					if ($this->EventBlacklist->save(
-							array(
-								'event_uuid' => $uuid, 
-								'comment' => !empty($data['EventBlacklist']['comment']) ? $data['EventBlacklist']['comment'] : '', 
-								'event_info' => !empty($data['EventBlacklist']['info']) ? $data['EventBlacklist']['info'] : '',
-								'event_orgc' => !empty($data['EventBlacklist']['orgc']) ? $data['EventBlacklist']['orgc'] : '',
-							)
-						)
-					) {
-						$successes[] = $uuid;
-					} else {
-						$fails[] = $uuid;
-					}
-				} else {
-					$fails[] = $uuid;
-				}
-			}
-			$message = 'Done. Added ' . count($successes) . ' new entries to the blacklist. ' . count($fails) . ' entries could not be saved.';
-			if ($this->_isRest()) {
-				$this->set('result', array('successes' => $successes, 'fails' => $fails));
-				$this->set('message', $message);
-				$this->set('_serialize', array('message', 'result'));
-			} else {
-				$this->Session->setFlash(__($message));
-				$this->redirect(array('action' => 'index'));
-			}
-		}
-	}
-	
-	public function edit($id) {
-		if (strlen($id) == 36) {
-			$eb = $this->EventBlacklist->find('first', array('conditions' => array('uuid' => $id)));
-		} else {
-			$eb = $this->EventBlacklist->find('first', array('conditions' => array('id' => $id)));
-		}
-		if (empty($eb)) throw new NotFoundException('Blacklist item not found.');
-		$this->set('eb', $eb);
-		if ($this->request->is('post')) {
-			if ($this->_isRest()) {
-				if ($this->response->type() === 'application/json') {
-					$isJson = true;
-					$data = $this->request->input('json_decode', true);
-				} else  {
-					$data = $this->request->data;
-				}
-				if (isset($data['request'])) $data = $data['request'];
-			} else {
-				$data = $this->request->data;
-			}
-			$fields = array('comment', 'event_info', 'event_orgc');
-			foreach ($fields as $f) {
-				if (isset($data['EventBlacklist'][$f])) $eb['EventBlacklist'][$f] = $data['EventBlacklist'][$f];
-			}
-			if ($this->EventBlacklist->save($eb)) {
-				if ($this->_isRest()) {
-					$this->set('message', array('Blacklist item added.'));
-					$this->set('_serialize', array('message'));
-				} else {
-					$this->Session->setFlash(__('Blacklist item added.'));
-					$this->redirect(array('action' => 'index'));
-				}
-			} else {
-				if ($this->_isRest()) {
-					throw new MethodNotAllowedException('Could not save the blacklist item.');
-				} else {
-					$this->Session->setFlash('Could not save the blacklist item');
-					$this->redirect(array('action' => 'index'));
-				}
-			}
-		}
-	}
+    public function add()
+    {
+        $this->BlackList->add($this->_isRest());
+    }
 
-	public function delete($id) {
-		if (strlen($id) == 36) {
-			$eb = $this->EventBlacklist->find('first', array(
-				'fields' => array('id'),
-				'conditions' => array('event_uuid' => $id),
-			));
-			$id = $eb['EventBlacklist']['id'];
-		}
-		if (!$this->request->is('post') && !$this->_isRest()) {
-			throw new MethodNotAllowedException();
-		}
-		
-		$this->EventBlacklist->id = $id;
-		if (!$this->EventBlacklist->exists()) {
-			throw new NotFoundException(__('Invalid blacklist entry'));
-		}
+    public function edit($id)
+    {
+        $this->BlackList->edit($this->_isRest(), $id);
+    }
 
-		if ($this->EventBlacklist->delete()) {
-			$this->Session->setFlash(__('Blacklist entry removed'));
-		} else {
-			$this->Session->setFlash(__('Could not remove the blacklist entry'));
-		}
-		$this->redirect(array('action' => 'index'));
-	}
-	
-	
+    public function delete($id)
+    {
+        $this->BlackList->delete($this->_isRest(), $id);
+    }
+
+    public function massDelete()
+    {
+        if ($this->request->is('post') || $this->request->is('put')) {
+            if (!isset($this->request->data['EventBlacklist'])) {
+                $this->request->data = array('EventBlacklist' => $this->request->data);
+            }
+            $ids = $this->request->data['EventBlacklist']['ids'];
+            $event_ids = json_decode($ids, true);
+            if (empty($event_ids)) {
+                throw new NotFoundException(__('Invalid event IDs.'));
+            }
+            $result = $this->EventBlacklist->deleteAll(array('EventBlacklist.id' => $event_ids));
+            if ($result) {
+                if ($this->_isRest()) {
+                    return $this->RestResponse->saveSuccessResponse('EventBlacklist', 'Deleted', $ids, $this->response->type());
+                } else {
+                    $this->Flash->success('Blacklist entry removed');
+                    $this->redirect(array('controller' => 'eventBlacklists', 'action' => 'index'));
+                }
+            } else {
+                $error = __('Failed to delete Event from EventBlacklist. Error: ') . PHP_EOL . h($result);
+                if ($this->_isRest()) {
+                    return $this->RestResponse->saveFailResponse('EventBlacklist', 'Deleted', false, $error, $this->response->type());
+                } else {
+                    $this->Flash->error($error);
+                    $this->redirect(array('controller' => 'eventBlacklists', 'action' => 'index'));
+                }
+            }
+        } else {
+            $ids = json_decode($this->request->query('ids'), true);
+            if (empty($ids)) {
+                throw new NotFoundException(__('Invalid event IDs.'));
+
+            }
+            $this->set('event_ids', $ids);
+        }
+    }
 }

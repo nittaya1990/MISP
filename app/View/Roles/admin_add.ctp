@@ -1,72 +1,77 @@
 <div class="roles form">
-<?php echo $this->Form->create('Role');?>
-	<fieldset>
-		<legend>Add Role</legend>
-	<?php
-		echo $this->Form->input('name');?>
-		<?php echo $this->Form->input('permission', array('type' => 'select', 'options' => $options), array('value' => '3'));?>
-		<div class = 'input clear'></div>
-		<?php echo $this->Form->input('perm_sync', array('type' => 'checkbox', 'checked' => false));?>
-		<?php echo $this->Form->input('perm_admin', array('type' => 'checkbox', 'checked' => false));?>
-		<?php echo $this->Form->input('perm_audit', array('type' => 'checkbox', 'checked' => false));?>
-		<div class = 'input clear'></div>
-		<?php echo $this->Form->input('perm_auth', array('type' => 'checkbox', 'checked' => false));?>
-		<?php echo $this->Form->input('perm_site_admin', array('type' => 'checkbox', 'checked' => false));?>
-		<?php echo $this->Form->input('perm_regexp_access', array('type' => 'checkbox', 'checked' => false));?>
-		<?php echo $this->Form->input('perm_tagger', array('type' => 'checkbox', 'checked' => false));?>
-		<?php echo $this->Form->input('perm_template', array('type' => 'checkbox', 'checked' => false));?>
-	</fieldset>
+<?php echo $this->Form->create('Role'); ?>
+    <fieldset>
+        <legend><?php echo __('Add Role');?></legend>
+        <?php
+            echo $this->Form->input('restricted_to_site_admin', array(
+                'type' => 'checkbox',
+                'class' => 'checkbox readonlyenabled',
+                'label' => __('Restrict to site admins')
+            ));
+        ?>
+            <div class = 'input clear'></div>
+        <?php
+            echo $this->Form->input('name');
+            echo $this->Form->input('permission', array('type' => 'select', 'label' => __('Permissions'), 'options' => $options), array('value' => '3'));
+        ?>
+        <div class = 'input clear'></div>
+        <?php
+            echo $this->Form->input('memory_limit', array('label' => __('Memory limit') .  ' (' . h($default_memory_limit) . ')'));
+            echo $this->Form->input('max_execution_time', array('label' => __('Maximum execution time') . ' (' . h($default_max_execution_time) . ')'));
+        ?>
+        <div class = 'input clear'></div>
+        <?php
+            echo $this->Form->input('enforce_rate_limit', array(
+                'type' => 'checkbox',
+                'label' => __('Enforce search rate limit')
+            ));
+        ?>
+        <div class = 'input clear'></div>
+        <div id="rateLimitCountContainer">
+            <?php
+                echo $this->Form->input('rate_limit_count', array('label' => __('# of searches / 15 min')));
+            ?>
+        </div>
+        <div class = 'input clear'></div>
+        <?php
+            $counter = 1;
+            foreach ($permFlags as $k => $flag):
+        ?>
+                <div class="permFlags<?php echo ' ' . ($flag['readonlyenabled'] ? 'readonlyenabled' : 'readonlydisabled'); ?>">
+        <?php
+                    echo $this->Form->input($k, array(
+                        'type' => 'checkbox',
+                        'class' => 'checkbox ' . ($flag['readonlyenabled'] ? 'readonlyenabled' : 'readonlydisabled'),
+                        'checked' => false,
+                        'label' => Inflector::humanize(substr($k, 5))
+                    ));
+                    if ($counter%3 == 0) echo "<div class = 'input clear'></div>";
+                    $counter++;
+        ?>
+                </div>
+        <?php
+            endforeach;
+        ?>
+    </fieldset>
 <?php
-echo $this->Form->button('Add', array('class' => 'btn btn-primary'));
+echo $this->Form->button(__('Add'), array('class' => 'btn btn-primary'));
 echo $this->Form->end();
 ?>
 </div>
-<?php 
-	echo $this->element('side_menu', array('menuList' => 'admin', 'menuItem' => 'addRole'));
-
-
-	$this->Js->get('#RolePermission')->event('change', 'deactivateActions()');
-
-$this->Js->get('#RolePermSync')->event('change', 'checkPerms("RolePermSync")');
-$this->Js->get('#RolePermAdmin')->event('change', 'checkPerms("RolePermAdmin")');
-$this->Js->get('#RolePermAudit')->event('change', 'checkPerms("RolePermAudit")');
-$this->Js->get('#RolePermSiteAdmin')->event('change', 'checkPerms("RolePermSiteAdmin");activateAll();');
-$this->Js->get('#RolePermRegexpAccess')->event('change', 'checkPerms("RolePermRegexpAccess")');
-$this->Js->get('#RolePermTagger')->event('change', 'checkPerms("RolePermTagger")');
+<?php
+    echo $this->element('/genericElements/SideMenu/side_menu', array('menuList' => 'admin', 'menuItem' => 'addRole'));
 ?>
 
 <script type="text/javascript">
-// only be able to tick perm_sync if manage org events and above.
-
-function deactivateActions() {
-	var e = document.getElementById("RolePermission");
-	if (e.options[e.selectedIndex].value == '0' || e.options[e.selectedIndex].value == '1') {
-		document.getElementById("RolePermSync").checked = false;
-		document.getElementById("RolePermAdmin").checked = false;
-		document.getElementById("RolePermAudit").checked = false;
-		document.getElementById("RolePermSiteAdmin").checked = false;
-		document.getElementById("RolePermRegexpAccess").checked = false;
-		document.getElementById("RolePermRegexpTagger").checked = false;
-	}
-}
-
-function activateAll() {
-	if (document.getElementById("RolePermSiteAdmin").checked) {
-		document.getElementById("RolePermSync").checked = true;
-		document.getElementById("RolePermAdmin").checked = true;
-		document.getElementById("RolePermAudit").checked = true;
-		document.getElementById("RolePermAuth").checked = true;
-		document.getElementById("RolePermRegexpAccess").checked = true;
-		document.getElementById("RolePermTagger").checked = true;
-	}
-}
-
-function checkPerms(id) {
-	var e = document.getElementById("RolePermission");
-	if (e.options[e.selectedIndex].value == '0' || e.options[e.selectedIndex].value == '1') {
-		document.getElementById(id).checked = false;
-	}
-}
-
+    $(document).ready(function() {
+        checkRolePerms();
+        checkRoleEnforceRateLimit();
+        $(".checkbox, #RolePermission").change(function() {
+            checkRolePerms();
+        });
+        $("#RoleEnforceRateLimit").change(function() {
+            checkRoleEnforceRateLimit();
+        });
+    });
 </script>
 <?php echo $this->Js->writeBuffer();
